@@ -1,0 +1,220 @@
+syntax = "proto3";
+import "google/protobuf/empty.proto";
+
+option java_multiple_files = true;
+option java_package = "io.tapdata.data.db2";//java 区分
+option java_outer_classname = "ProtoDB2ReadLog";
+option objc_class_prefix = "PD";
+
+package tapdata;
+
+service DB2ReadLogServer
+{
+    rpc Ping(PingRequest) returns (PingResponse) {}
+    rpc ServerInfo(google.protobuf.Empty) returns (ServerInfoResponse) {}
+
+
+    rpc CreateReadLogTask(ReadLogRequest) returns (ControlResponse){}
+    rpc DeleteReadLogTask(TaskHandleRequest) returns (ControlResponse){}
+    rpc PauseReadLogTask(TaskHandleRequest) returns (ControlResponse){}
+    rpc ResumeReadLogTask(TaskHandleRequest) returns (ControlResponse){}
+
+    
+    rpc ListReadLogTaskStates(ListReadLogTaskStatesRequest) returns (ListReadLogTaskStatesResponse){}
+    rpc GetReadLogTaskState(TaskHandleRequest) returns (GetReadLogTaskStateResponse){}
+
+    rpc PullReadLog(TaskHandleRequest) returns (stream ReadLogResponse) {}//拉取日志数据
+
+    rpc PushReadLog(PushReadLogRequest) returns (PushReadLogResponse) {}//子进程推送日志数据
+}
+
+message MessageHeader
+{
+    int32 ProtocolVersion = 1;//协议版本
+}
+
+message PingRequest
+{
+    MessageHeader header = 1;//消息头
+    int32 code = 2;//请求码
+}
+
+message PingResponse
+{
+    MessageHeader header = 1;//消息头
+    int32 status = 2;//状态
+    string msg = 3;//消息
+}
+
+message ServerInfoResponse
+{
+    MessageHeader header = 1;//消息头
+    int32 serverVersion = 2;//服务当前版本
+    string info = 3;//服务当前信息
+    DB2Veresion supportVersion = 4;//支持的数据库版本
+    repeated int32 supportProtocolVersion = 5;//支持的协议版本
+    repeated WriterType supportWriterType = 6;//支持的数据库日志写回方式
+}
+
+enum WriterType
+{
+    GRPC = 0;
+    KAFKA = 1;
+}
+
+message ReaderSource
+{
+    DB2Veresion databaseVersion = 1;
+    string databaseName = 2;//数据库名，最长为8字节
+    string databaseUsername = 3;//用户名，最长为128字节
+    string databasePassword = 4;//密码，最长为14字节
+    string databaseHostname = 5;//编目使用，Hostname or IP address，最长为255字节
+    string databaseServiceName = 6;//编目使用，TCP/IP service name or associated port number，最长为14字节
+}
+
+message WriterTarget
+{
+    WriterType type = 1;//数据库日志写回方式
+    string kafkaWriterTopic = 2;//kafka的推送Topic
+    string kafkaWriterBrokers = 3;//kafka的推送Broker地址集合
+}
+
+message SourceTable
+{
+    int32 tableId = 1;//表的id，从SYSCAT.TABLES表里查出TABLEID
+    int32 tableSpaceId = 2;//表空间id，从SYSCAT.TABLES表里查出TBSPACEID，当前该参数不参与日志过滤
+}
+
+message ReadLogRequest
+{
+    MessageHeader header = 1;//消息头
+    bool bigEndian = 2;//远程DB2数据库是否是大端
+    string id = 3;//日志任务ID
+    string scn = 4;//db2的scn以string存储
+    int64 stime = 5;//从 Januray 1 1970起UTC秒数，当stime大于0时，比stime小的日志将会被过滤
+    repeated SourceTable tables = 6;//如果tables不为空，那么不在该tables内的DML日志将会被过滤，如果tables为空，那么有一些DDL的消息回复
+    ReaderSource source = 7;//数据库源读取（连接）配置
+    WriterTarget target = 8;//数据库写回日志分析配置
+}
+
+message TaskHandleRequest
+{
+    MessageHeader header = 1;//消息头
+    string id = 2;//日志任务ID
+}
+
+enum DB2Veresion
+{
+    AUTO = 0;//当Veresion用来做参数校验，默认不校验版本
+    V9 = 1;//当数据库主版本号小于10时，配置V9
+    V10 = 2;//当数据库主版本号大于等于10时，配置V10
+}
+
+enum ResponseCode
+{
+    OK = 0;
+    INVALID_PARAM = 1;//收取到rpc调用时，程序本地发现参数错误。
+    ALREADY_CREATE = 2;//收到创建任务后，程序本地发现有相同的任务id。
+    NOT_EXIST = 3;//收到暂停，继续，停止，拉取数据后，程序本地找不到对应任务id。
+    PAUSED = 4;//收到暂停后，程序本地发现对应id的任务已经暂停。
+    RUNNING = 5;//收到继续后，程序本地发现对应id的任务不在暂停状态。
+    STOP_BY_EXCEPTION = 6;//程序本地任务执行过程中，因发生错误，已经停止。
+    NOT_SUPPORT = 7;//程序本地发现请求的服务尚不被支持。
+    SHUTTING_DOWN = 8;//程序本地已经正处于关闭服务中。
+    PASSIVE_STOP = 9;//程序本地收到外部rpc API'停止'，而导致停止。
+}
+
+message ControlResponse
+{
+    MessageHeader header = 1;//消息头
+    ResponseCode code = 2;//状态码
+    string msg = 3;//携带错误信息
+}
+
+enum TaskState
+{
+    TASK_RUNNING = 0;//任务运行中
+    TASK_PAUSED = 1;//任务已暂停
+    TASK_STOP_BY_EXCEPTION = 2;//任务因不可恢复异常而处于停止状态中
+}
+
+message ReadLogTaskState
+{
+    string id = 1;//日志任务ID
+    TaskState state = 2;//日志任务当前状态
+}
+
+message ListReadLogTaskStatesRequest
+{
+    MessageHeader header = 1;//消息头
+}
+
+message ListReadLogTaskStatesResponse
+{
+    MessageHeader header = 1;//消息头
+    ResponseCode code = 2;//回复状态码
+    repeated ReadLogTaskState taskState = 3;//日志任务的状态集合
+}
+
+message GetReadLogTaskStateResponse
+{
+    MessageHeader header = 1;//消息头
+    ResponseCode code = 2;//回复状态码
+    repeated ReadLogTaskState taskState = 3;//日志任务的状态集合（空或1个）
+}
+
+enum ReadLogOp
+{
+    UNKNOWN = 0;
+    ROLLBACK  = 1;
+    COMMIT = 2; //commit
+    INSERT = 3; //c 
+    UPDATE = 4; //u
+    DELETE = 5; //d
+    DDL = 6;    //注意DB2的DDL是数据库级别
+}
+
+message ReadLogPayload
+{
+    ReadLogOp op = 1;
+    string scn = 2;//重要
+    bytes logBytes = 3;//ddl是语句字符串，dml是数据二进制buffer
+    int64 transactionTime = 4;//从 Januray 1 1970起UTC秒数, 只有op为commit才有
+    string transactionId = 5;//事务id，格式是"int.int.int"
+    int32 tableId = 6;//dml消息的表id，在ddl消息内不能依据此做为依据
+    int32 tableSpaceId = 7;//dml消息的表空间id，在ddl消息内不能依据此做为依据
+    string rid = 8;//消息纪录id，该id与ROLLBACK消息有关，不是每一种消息都有rid
+    string defaultSchema = 9;//只有op为ddl该字段有值，当op为ddl时该字段总是不为空
+    string schema = 10;//辅助字段，只有op为ddl该字段有值，当op为ddl该字段为空时，表明当前ddl语句没有被识别，但ddl语句是合法的
+    string tableName = 11;//辅助字段，只有op为ddl该字段有值，当op为ddl该字段为空时，表明当前ddl语句没有被识别，但ddl语句是合法的
+    bytes beforeLogBytes = 12;//当op为update时，该字段有值，数据为二进制buffer
+    string pendingMinScn = 13;//所有未提交事务的最小scn
+}
+
+message ReadLogResponse
+{
+    MessageHeader header = 1;//消息头
+    ResponseCode code = 2;//状态码
+    string payloadVersion = 3;//解析器版本
+    repeated ReadLogPayload payload = 4;//日志分析后的负荷（code不为OK时为空）
+}
+
+enum PushResponseCode
+{
+    PUSH_OK = 0;
+    PUSH_STOP = 1;//停止推送。
+    PUSH_PAUSED = 2;//推送暂停，队列满或任务已暂停。
+}
+
+message PushReadLogResponse
+{
+    PushResponseCode code = 1;//状态码
+    int32 waitTimeMS = 2;//当code为PUSH_PAUSED时等待毫秒数
+}
+
+message PushReadLogRequest
+{
+    string id = 1;//日志任务ID
+    ReadLogResponse logResponse = 2;//日志
+}
+

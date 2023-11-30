@@ -1,0 +1,162 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <ProjectGuid>{6D71531F-FB14-4D46-8AF3-049CB920D544}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="VisualGDBPackageDefinitions">
+    <ToolchainID>com.sysprogs.toolchain.default-gcc</ToolchainID>
+  </PropertyGroup>
+  <ImportGroup Label="VisualGDBFindComponents">
+    <Import Project="$(LOCALAPPDATA)\VisualGDB\FindComponents.props" />
+  </ImportGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <NMakeIncludeSearchPath>../include;proto;share;server;server/src;server/logv10;../include/db2</NMakeIncludeSearchPath>
+    <NMakeForcedIncludes>
+    </NMakeForcedIncludes>
+    <NMakeBuildCommandLine>"$(VISUALGDB_DIR)\VisualGDB.exe" /build "$(ProjectPath)" "/solution:$(SolutionPath)"  "/config:$(Configuration)" "/platform:$(Platform)"</NMakeBuildCommandLine>
+    <NMakeCleanCommandLine>"$(VISUALGDB_DIR)\VisualGDB.exe" /clean "$(ProjectPath)" "/solution:$(SolutionPath)"  "/config:$(Configuration)" "/platform:$(Platform)"</NMakeCleanCommandLine>
+    <NMakeReBuildCommandLine>"$(VISUALGDB_DIR)\VisualGDB.exe" /rebuild "$(ProjectPath)" "/solution:$(SolutionPath)"  "/config:$(Configuration)" "/platform:$(Platform)"</NMakeReBuildCommandLine>
+    <NMakeOutput>$(ProjectDir)DB2PlugInDataSource-Debug.vgdbsettings</NMakeOutput>
+    <IncludePath />
+    <ReferencePath />
+    <LibraryPath />
+    <NMakePreprocessorDefinitions>
+    </NMakePreprocessorDefinitions>
+    <AdditionalOptions>/std:c++17</AdditionalOptions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <NMakeIncludeSearchPath>$(LOCALAPPDATA)\VisualGDB\RemoteSourceCache\192.168.1.132\0000\include\c++\8;$(LOCALAPPDATA)\VisualGDB\RemoteSourceCache\192.168.1.132\0000\include\c++\8\x86_64-redhat-linux;$(LOCALAPPDATA)\VisualGDB\RemoteSourceCache\192.168.1.132\0000\include\c++\8\backward;$(LOCALAPPDATA)\VisualGDB\RemoteSourceCache\192.168.1.132\0001\include;$(LOCALAPPDATA)\VisualGDB\RemoteSourceCache\192.168.1.132\0003\include;$(LOCALAPPDATA)\VisualGDB\RemoteSourceCache\192.168.1.132\0000\include;$(LOCALAPPDATA)\VisualGDB\RemoteSourceCache\192.168.1.132\0002\include;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+    <NMakeForcedIncludes>$(ProjectDir)\gcc_Release.h;$(VISUALGDB_DIR)\gcc_compat.h;$(NMakeForcedIncludes)</NMakeForcedIncludes>
+    <NMakePreprocessorDefinitions>__VisualGDB_CFG_Release;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <NMakeBuildCommandLine>"$(VISUALGDB_DIR)\VisualGDB.exe" /build "$(ProjectPath)" "/solution:$(SolutionPath)"  "/config:$(Configuration)" "/platform:$(Platform)"</NMakeBuildCommandLine>
+    <NMakeCleanCommandLine>"$(VISUALGDB_DIR)\VisualGDB.exe" /clean "$(ProjectPath)" "/solution:$(SolutionPath)"  "/config:$(Configuration)" "/platform:$(Platform)"</NMakeCleanCommandLine>
+    <NMakeReBuildCommandLine>"$(VISUALGDB_DIR)\VisualGDB.exe" /rebuild "$(ProjectPath)" "/solution:$(SolutionPath)"  "/config:$(Configuration)" "/platform:$(Platform)"</NMakeReBuildCommandLine>
+    <NMakeOutput>$(ProjectDir)DB2PlugInDataSource-Release.vgdbsettings</NMakeOutput>
+    <IncludePath />
+    <ReferencePath />
+    <LibraryPath />
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="client\main.cpp" />
+    <ClCompile Include="proto\DB2PlugInDataSource.grpc.pb.cc" />
+    <ClCompile Include="proto\DB2PlugInDataSource.pb.cc" />
+    <ClCompile Include="server\logv10\db2_log_version.cpp" />
+    <ClCompile Include="server\logv10\dblogconn.cpp" />
+    <ClCompile Include="server\logv10\utilapi.C" />
+    <ClCompile Include="server\logv10\utilemb.C" />
+    <ClCompile Include="server\logv10\utilrecov.C" />
+    <ClCompile Include="server\logv9\db2_log_version.cpp" />
+    <ClCompile Include="server\logv9\dblogconn.cpp" />
+    <ClCompile Include="server\logv9\utilapi.C" />
+    <ClCompile Include="server\logv9\utilemb.C" />
+    <ClCompile Include="server\logv9\utilrecov.C" />
+    <ClCompile Include="server\src\app.cpp" />
+    <ClCompile Include="server\src\DB2CataLog.cpp" />
+    <ClCompile Include="server\src\DB2PlugInDataApp.cpp" />
+    <ClCompile Include="server\src\DB2ReadLogApp.cpp" />
+    <ClCompile Include="server\src\GrpcServer.cpp" />
+    <ClCompile Include="server\src\json_define.cpp" />
+    <ClCompile Include="server\src\LocalDDLInfo.cpp" />
+    <ClCompile Include="server\src\local_app.cpp" />
+    <ClCompile Include="server\src\local_config.cpp" />
+    <ClCompile Include="server\src\LogSubprocess.cpp" />
+    <ClCompile Include="server\src\main.cpp" />
+    <ClCompile Include="server\src\ReadLogManager.cpp" />
+    <ClCompile Include="server\src\readlog_config.cpp" />
+    <ClCompile Include="server\src\readlog_config_manager.cpp" />
+    <ClCompile Include="server\src\version.cpp" />
+    <ClCompile Include="share\log_imp.cpp" />
+    <ClCompile Include="share\tapdata_base64.cpp" />
+    <ClCompile Include="share\tool.cpp" />
+    <ClCompile Include="share\tool_extern.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+  <ItemGroup>
+    <None Include="CMakeLists.txt" />
+    <None Include="DB2PlugInDataSource-Debug.vgdbsettings" />
+    <None Include="DB2PlugInDataSource-Release.vgdbsettings" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="proto\DB2PlugInDataSource.grpc.pb.h" />
+    <ClInclude Include="proto\DB2PlugInDataSource.pb.h" />
+    <ClInclude Include="server\logv10\db2_log_version.h" />
+    <ClInclude Include="server\logv10\dblogconn.h" />
+    <ClInclude Include="server\logv10\utilapi.h" />
+    <ClInclude Include="server\logv10\utilemb.h" />
+    <ClInclude Include="server\logv9\db2_log_version.h" />
+    <ClInclude Include="server\logv9\dblogconn.h" />
+    <ClInclude Include="server\logv9\utilapi.h" />
+    <ClInclude Include="server\logv9\utilemb.h" />
+    <ClInclude Include="server\src\app.h" />
+    <ClInclude Include="server\src\DB2CataLog.h" />
+    <ClInclude Include="server\src\DB2PlugInDataApp.h" />
+    <ClInclude Include="server\src\DB2ReadLogApp.h" />
+    <ClInclude Include="server\src\ErrorCode.h" />
+    <ClInclude Include="server\src\GrpcServer.h" />
+    <ClInclude Include="server\src\GrpcTypeHeader.h" />
+    <ClInclude Include="server\src\json.hpp" />
+    <ClInclude Include="server\src\json_define.h" />
+    <ClInclude Include="server\src\LocalDDLInfo.h" />
+    <ClInclude Include="server\src\LogSubprocess.h" />
+    <ClInclude Include="server\src\PushReadLogClient.h" />
+    <ClInclude Include="server\src\ReadLogManager.h" />
+    <ClInclude Include="server\src\readlog_config.h" />
+    <ClInclude Include="server\src\readlog_config_manager.h" />
+    <ClInclude Include="server\src\ServerTask.h" />
+    <ClInclude Include="server\src\local_app.h" />
+    <ClInclude Include="server\src\local_config.h" />
+    <ClInclude Include="server\src\StreamToClient.h" />
+    <ClInclude Include="server\src\UnaryRpc.h" />
+    <ClInclude Include="server\src\version.h" />
+    <ClInclude Include="share\batch_queue.h" />
+    <ClInclude Include="share\blocking_queue.h" />
+    <ClInclude Include="share\finally_imp.h" />
+    <ClInclude Include="share\log_imp.h" />
+    <ClInclude Include="share\noncopyable.h" />
+    <ClInclude Include="share\tapdata_base64.h" />
+    <ClInclude Include="share\tool.h" />
+    <ClInclude Include="share\tool_extern.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="server\logv10\CMakeLists.txt" />
+    <Text Include="server\logv9\CMakeLists.txt" />
+  </ItemGroup>
+</Project>

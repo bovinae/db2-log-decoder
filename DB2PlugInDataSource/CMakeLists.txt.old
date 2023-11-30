@@ -1,0 +1,65 @@
+cmake_minimum_required(VERSION 3.5.1)
+
+project(DB2PlugInDataSource C CXX)
+
+find_package(Threads REQUIRED)
+
+set(protobuf_MODULE_COMPATIBLE TRUE)
+find_package(Protobuf CONFIG REQUIRED)
+message(STATUS "Using protobuf ${Protobuf_VERSION}")
+
+set(_PROTOBUF_LIBPROTOBUF protobuf::libprotobuf)
+set(_REFLECTION gRPC::grpc++_reflection)
+if(CMAKE_CROSSCOMPILING)
+  find_program(_PROTOBUF_PROTOC protoc)
+else()
+  set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
+endif()
+
+# Find gRPC installation
+# Looks for gRPCConfig.cmake file installed by gRPC's cmake installation.
+find_package(gRPC CONFIG REQUIRED)
+message(STATUS "Using gRPC ${gRPC_VERSION}")
+
+set(_GRPC_GRPCPP gRPC::grpc++)
+if(CMAKE_CROSSCOMPILING)
+  find_program(_GRPC_CPP_PLUGIN_EXECUTABLE grpc_cpp_plugin)
+else()
+  set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
+endif()
+
+set(db2_plug_proto_srcs "${PROJECT_SOURCE_DIR}/proto/DB2PlugInDataSource.pb.cc")
+set(db2_plug_proto_hdrs "${PROJECT_SOURCE_DIR}/proto/DB2PlugInDataSource.pb.h")
+set(db2_plug_grpc_srcs "${PROJECT_SOURCE_DIR}/proto/DB2PlugInDataSource.grpc.pb.cc")
+set(db2_plug_grpc_hdrs "${PROJECT_SOURCE_DIR}/proto/DB2PlugInDataSource.grpc.pb.h")
+
+if(NOT SKIP_BUILD_PROTO)
+  get_filename_component(db2_plug_proto "protos/DB2PlugInDataSource.proto" ABSOLUTE)
+  get_filename_component(db2_plug_proto_path "${db2_plug_proto}" PATH)
+
+  add_custom_command(
+        OUTPUT "${db2_plug_proto_srcs}" "${db2_plug_proto_hdrs}" "${db2_plug_grpc_srcs}" "${db2_plug_grpc_hdrs}"
+        COMMAND ${_PROTOBUF_PROTOC}
+        ARGS --grpc_out "${PROJECT_SOURCE_DIR}/proto"
+          --cpp_out "${PROJECT_SOURCE_DIR}/proto"
+          -I "${db2_plug_proto_path}"
+          --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
+          "${db2_plug_proto}"
+        DEPENDS "${db2_plug_proto}"
+        )
+endif()
+
+include_directories (proto)
+
+add_library(DB2PlugGrpcProto
+  ${db2_plug_proto_srcs}
+  ${db2_plug_proto_hdrs}
+  ${db2_plug_grpc_srcs}
+  ${db2_plug_grpc_hdrs}
+)
+
+target_link_libraries(DB2PlugGrpcProto
+  ${_REFLECTION}
+  ${_GRPC_GRPCPP}
+  ${_PROTOBUF_LIBPROTOBUF}
+)
