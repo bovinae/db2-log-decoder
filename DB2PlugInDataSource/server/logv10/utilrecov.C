@@ -563,6 +563,13 @@ int UtilLog::LogBufferDisplay(char* logBuffer,
 		rc = LogRecordDisplay(recordBuffer, recordSize, recordType, recordFlag, pJavaWrap);
 		CHECKRC(rc, "LogRecordDisplay");
 
+		// // output every record
+		// printf("record %d: ", logRecordNb);
+		// for (sqluint32 i = 0; i < recordSize; i++) {
+		// 	printf("%02x ", (unsigned char)recordBuffer[i]); 
+		// }
+		// printf("\n");
+
 		// update the recordBuffer
 		recordBuffer += recordSize;
 	}
@@ -851,7 +858,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 
 	switch (functionIdentifier)
 	{
-	case 4:
+	case 0x04:
 	{
 		//cout << "      function ID: DDL statement Record" << endl;
 		const LocalDDLStatementLogRecord* record = (const LocalDDLStatementLogRecord*)recordDataBuffer;
@@ -871,7 +878,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 
 		return 0;
 	}
-	case 5:
+	case 0x05:
 	{
 		//cout << "      function ID: Undo DDL statement Record" << endl;
 		const LocalRDSLogRecordHeader* record = (const LocalRDSLogRecordHeader*)recordHeaderBuffer;
@@ -888,7 +895,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		return 0;
 	}
 
-	case 35:
+	case 0x23:
 	{
 		cout << "      function ID: Reorg Table" << endl;
 
@@ -903,10 +910,10 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 
 		return 0;
 	}
-	case 0x0080:
+	case 0x80:
 		cout << "      function ID: Initial Table Record" << endl;
 		break;
-	case 0x00AB:
+	case 0xAB:
 	{
 		cout << "      function ID: Changing Row Version Operation" << endl;
 		cout << "\n >>>> recordHeaderSize " << recordHeaderSize;
@@ -919,7 +926,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 
 		return 0;
 	}
-	case 0x00A1:
+	case 0xA1:
 		//cout << "      function ID: Delete Record" << endl;
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
@@ -935,7 +942,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		userDataSize = subRecordLen - 8;
 		CHECKRC(rc, "LogSubRecordDisplay");
 		break;
-	case 112:
+	case 0x70:
 		LOG_DEBUG("      function ID: Undo Update Record");
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
@@ -945,14 +952,14 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		CHECKRC(rc, "LogSubRecordDisplay");
 		operation = decltype(operation)::ROLLBACK;
 		break;
-	case 110:
+	case 0x6E:
 		LOG_DEBUG("      function ID: Undo Insert Record");
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
 		LOG_DEBUG("        RID: {}", recid.getString());
 		operation = decltype(operation)::ROLLBACK;
 		break;
-	case 111:
+	case 0x6F:
 		LOG_DEBUG("      function ID: Undo Delete Record");
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
@@ -962,7 +969,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		CHECKRC(rc, "LogSubRecordDisplay");
 		operation = decltype(operation)::ROLLBACK;
 		break;
-	case 0xa2:
+	case 0xA2:
 		//cout << "      function ID: Insert Record" << endl;
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
@@ -977,7 +984,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		operation = decltype(operation)::INSERT;
 		userDataSize = subRecordLen - 8;
 		break;
-	case 163:
+	case 0xA3:
 		//cout << "      function ID: Update Record" << endl;
 		newSubRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		oldSubRecordLen = recordDataSize + 6 -       //NEW
@@ -1030,7 +1037,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		beforUserDataSize = oldSubRecordLen - 8;
 
 		break;
-	case 165:
+	case 0xA5:
 		cout << "      function ID: Insert Record to Empty Page" << endl;
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
@@ -1043,7 +1050,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		rc = LogSubRecordDisplay(subRecordBuffer, subRecordLen, pJavaWrap, isInternal);
 		CHECKRC(rc, "LogSubRecordDisplay");
 		break;
-	case 164:
+	case 0xA4:
 		cout << "      function ID: Delete Record to Empty Page" << endl;
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
@@ -1056,7 +1063,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		rc = LogSubRecordDisplay(subRecordBuffer, subRecordLen, pJavaWrap, isInternal);
 		CHECKRC(rc, "LogSubRecordDisplay");
 		break;
-	case 166:
+	case 0xA6:
 		cout << "      function ID: Rollback delete Record to Empty Page" << endl;
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
@@ -1069,7 +1076,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		rc = LogSubRecordDisplay(subRecordBuffer, subRecordLen, pJavaWrap, isInternal);
 		CHECKRC(rc, "LogSubRecordDisplay");
 		break;
-	case 124:
+	case 0x7C:
 		cout << "      function ID:  Alter Table Attribute" << endl;
 		alterBitMask = *(sqluint64*)(recordDataBuffer);
 		alterBitValues = *((sqluint64*)(recordDataBuffer + sizeof(sqluint64)));
@@ -1180,7 +1187,7 @@ int UtilLog::LogSubRecordDisplay(char* recordBuffer,
 	recordType = *(sqluint8*)(recordBuffer);
 	if ((recordType != 0) && (recordType != 4) && (recordType != 16))
 	{
-		LOG_DEBUG("        Unknown subrecord type.");
+		// LOG_DEBUG("        Unknown subrecord type:{}", recordType);
 	}
 	else if (recordType == 4)
 	{

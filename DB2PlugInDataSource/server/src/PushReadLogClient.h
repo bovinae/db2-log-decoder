@@ -72,7 +72,7 @@ namespace tapdata
 					return -1;
 				while (batch_payloads_.size() > cache_batch_size && get_app<DB2ReadLogApp>()->keep_run())
 					std::this_thread::sleep_for(std::chrono::milliseconds(500));
-				if (get_app<DB2ReadLogApp>()->keep_run() || payloads.size() > 0)
+				if (get_app<DB2ReadLogApp>()->keep_run())
 				{
 					batch_payloads_.put(payloads.begin(), payloads.end());
 					return 0;
@@ -94,7 +94,7 @@ namespace tapdata
 						result -= 0x400;
 					}
 
-					result = (get_app<DB2ReadLogApp>()->keep_run() || req_.logresponse().payload_size() > 0) ? try_push(stub_, resp_, req_) : -1;
+					result = (get_app<DB2ReadLogApp>()->keep_run()) ? try_push(stub_, resp_, req_) : -1;
 				} while (result > 0);
 				return result;
 			}
@@ -161,6 +161,26 @@ namespace tapdata
 		int32_t push_commit(ReadLogPayload&& payload)
 		{
 			return append_commit_payload(std::move(payload));
+		}
+
+		//0为ok，小于0出错
+		int32_t push_heartbeat(ReadLogPayload&& payload)
+		{			
+			const auto it = std::find_if(readLogPayloadCaches_.begin(), readLogPayloadCaches_.end(),
+				[&payload](const ReadLogPayloadCache& i) { return i.transactionId == payload.transactionid(); });
+
+			if (it != readLogPayloadCaches_.end())//找到了就修改
+			{
+				it->payloads.emplace_back(std::move(payload));
+			}
+			else
+			{
+				//没找到就新增
+				auto transactionId = payload.transactionid();
+				std::vector<ReadLogPayload> payloads{ std::move(payload) };
+				readLogPayloadCaches_.emplace_back(ReadLogPayloadCache{ false, std::move(transactionId), std::move(payloads) });
+			}
+			return flash_push();
 		}
 
 		//0为ok，小于0出错
@@ -244,7 +264,7 @@ namespace tapdata
 			if (!flush_all)
 			{
 				push_begin = std::stable_partition(readLogPayloadCaches_.begin(), readLogPayloadCaches_.end(),
-				[](const ReadLogPayloadCache& i) {return !(!i.reorgPending && !i.payloads.empty() && i.payloads.back().op() == decltype(i.payloads.back().op())::COMMIT); });	
+				[](const ReadLogPayloadCache& i) {return !(!i.reorgPending && !i.payloads.empty() && (i.payloads.back().op() == decltype(i.payloads.back().op())::COMMIT || i.payloads.back().op() == decltype(i.payloads.back().op())::HEARTBEAT)); });	
 			}
 
 			for (auto it = push_begin; it != readLogPayloadCaches_.end(); ++it)
@@ -256,7 +276,6 @@ namespace tapdata
 
 			readLogPayloadCaches_.erase(push_begin, readLogPayloadCaches_.end());//清空掉已经标记发送状态的缓存
 
-			LOG_DEBUG("cache size left:{}", readLogPayloadCaches_.size());
 			return result;
 		}
 
@@ -336,7 +355,7 @@ namespace tapdata
 
 		int32_t append_commit_payload(ReadLogPayload&& payload)
 		{
-			LOG_DEBUG("commit transactiontime:{},scn:{}", payload.transactiontime(), payload.scn());
+			// LOG_DEBUG("commit transactiontime:{},scn:{}", payload.transactiontime(), payload.scn());
 			const auto it = std::find_if(readLogPayloadCaches_.begin(), readLogPayloadCaches_.end(),
 				[&payload](const ReadLogPayloadCache& i) { return i.transactionId == payload.transactionid(); });
 			if (it == readLogPayloadCaches_.end())

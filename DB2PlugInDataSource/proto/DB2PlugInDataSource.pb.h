@@ -251,12 +251,13 @@ enum ReadLogOp : int {
   UPDATE = 4,
   DELETE = 5,
   DDL = 6,
+  HEARTBEAT = 7,
   ReadLogOp_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
   ReadLogOp_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
 bool ReadLogOp_IsValid(int value);
 constexpr ReadLogOp ReadLogOp_MIN = UNKNOWN;
-constexpr ReadLogOp ReadLogOp_MAX = DDL;
+constexpr ReadLogOp ReadLogOp_MAX = HEARTBEAT;
 constexpr int ReadLogOp_ARRAYSIZE = ReadLogOp_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ReadLogOp_descriptor();

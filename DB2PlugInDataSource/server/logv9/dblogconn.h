@@ -103,6 +103,7 @@ struct ReadLogWrap
     using push_reorg_table_message_func = std::function<int32_t(tapdata::ReadLogPayload&&)>;
 
     using push_commit_message_func = std::function<int32_t(tapdata::ReadLogPayload&&)>;
+    using push_heartbeat_message_func = std::function<int32_t(tapdata::ReadLogPayload&&)>;
     using push_pending_message_func = std::function<int32_t(tapdata::ReadLogPayload&&)>;
     using push_abort_message_func = std::function<int32_t(tapdata::ReadLogPayload&&)>;
 
@@ -119,6 +120,7 @@ struct ReadLogWrap
         push_reorg_table_message_func push_reorg_table_message_func_;
 
         push_commit_message_func push_commit_message_func_;
+        push_heartbeat_message_func push_heartbeat_message_func_;
         push_abort_message_func push_abort_message_func_;
 
         flush_func flush_func_;

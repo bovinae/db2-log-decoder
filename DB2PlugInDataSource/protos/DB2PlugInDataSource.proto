@@ -172,6 +172,7 @@ enum ReadLogOp
     UPDATE = 4; //u
     DELETE = 5; //d
     DDL = 6;    //注意DB2的DDL是数据库级别
+    HEARTBEAT = 7;
 }
 
 message ReadLogPayload

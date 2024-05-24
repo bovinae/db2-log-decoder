@@ -8,6 +8,7 @@
 
 #include <grpcpp/grpcpp.h>
 #include "DB2PlugInDataSource.grpc.pb.h"
+#include "log_imp.h"
 
 
 #include "ServerTask.h"
@@ -84,18 +85,24 @@ namespace tapdata
                     continue;
                 if (state.first == decltype(state.first)::RequestDone)
                 {
-                    if (!request(state.second))
+                    if (!request(state.second)) {
+                        LOG_DEBUG("Reset service_->RequestPullReadLog");
                         Reset();
+                    }
                 }
                 else if (state.first == decltype(state.first)::WriteDone)
                 {
-                    if (!write(state.second))
+                    if (!write(state.second)) {
+                        LOG_DEBUG("Reset service_->RequestPullReadLog");
                         Reset();
+                    }
                 }
                 else if (state.first == decltype(state.first)::FinishDone)
                 {
-                    if (!finish(state.second))
+                    if (!finish(state.second)) {
+                        // LOG_DEBUG("Reset service_->RequestPullReadLog");
                         Reset();
+                    }
                 }
                 else
                 {
@@ -106,6 +113,7 @@ namespace tapdata
 
         bool request(bool ok)
         {
+            // LOG_DEBUG("request, ok:{}", ok);
             if (!ok) {
                 return false;
             }
@@ -153,6 +161,7 @@ namespace tapdata
 
         bool write(bool ok)
         {
+            // LOG_DEBUG("write, ok:{}", ok);
             if (ok) {
                 if (last_fail_)
                     resp_stream_.Finish(grpc::Status::OK, &finish_done_func_);
@@ -194,24 +203,28 @@ namespace tapdata
 
         bool finish(bool /*ok*/)
         {
+            // LOG_DEBUG("finish");
             finish_method_(task_id_);
             return false;
         }
 
         bool request_done(bool ok)
         {
+            // LOG_DEBUG("request_done, ok:{}", ok);
             states_.put(std::make_pair(ServerTaskState::RequestDone, ok));
             return true;
         }
 
         bool write_done(bool ok)
         {
+            // LOG_DEBUG("write_done, ok:{}", ok);
             states_.put(std::make_pair(ServerTaskState::WriteDone, ok));
             return true;
         }
 
         bool finish_done(bool ok)
         {
+            // LOG_DEBUG("finish_done, ok:{}", ok);
             states_.put(std::make_pair(ServerTaskState::FinishDone, ok));
             return false;
         }

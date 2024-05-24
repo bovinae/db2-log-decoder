@@ -108,7 +108,6 @@ EXEC SQL BEGIN DECLARE SECTION;
   char dbAlias[15];
   char dbUser[129];
   char dbPswd[15];
-  char dbCodepage[5] = "1386";
 
 /*
 EXEC SQL END DECLARE SECTION;
@@ -187,7 +186,7 @@ EXEC SQL CONNECT TO :dbAlias USER :dbUser USING :dbPswd;
   sqlastrt(sqla_program_id, &sqla_rtinfo, &sqlca);
   sqlaaloc(2,3,2,0L);
     {
-      struct sqla_setdata_list sql_setdlist[4];
+      struct sqla_setdata_list sql_setdlist[3];
       sql_setdlist[0].sqltype = 460; sql_setdlist[0].sqllen = 15;
       sql_setdlist[0].sqldata = (void*)dbAlias;
       sql_setdlist[0].sqlind = 0L;
@@ -197,9 +196,6 @@ EXEC SQL CONNECT TO :dbAlias USER :dbUser USING :dbPswd;
       sql_setdlist[2].sqltype = 460; sql_setdlist[2].sqllen = 15;
       sql_setdlist[2].sqldata = (void*)dbPswd;
       sql_setdlist[2].sqlind = 0L;
-      sql_setdlist[3].sqltype = 460; sql_setdlist[3].sqllen = 5;
-      sql_setdlist[3].sqldata = (void*)dbCodepage;
-      sql_setdlist[3].sqlind = 0L;
       sqlasetdata(2,0,3,sql_setdlist,0L,0L);
     }
   sqlacall((unsigned short)29,5,2,0,0L);

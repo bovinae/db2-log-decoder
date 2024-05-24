@@ -144,6 +144,18 @@ int ReadLogWrap::sendNormalCommitMessage(sqluint32 transactionTime) const
 	return message_callback_funcs_.push_commit_message_func_(move(payload));
 }
 
+int ReadLogWrap::sendHeartbeatMessage() const
+{
+	tapdata::ReadLogPayload payload;
+	payload.set_op(tapdata::ReadLogOp::HEARTBEAT);
+	payload.set_scn(scn_);
+	payload.set_transactionid("-1");
+	payload.set_pendingminscn(pending_scn_wrap_.get_min_scn());
+	auto currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+	payload.set_transactiontime(currentTime);
+	return message_callback_funcs_.push_heartbeat_message_func_(move(payload));
+}
+
 //返回小于0表示出错，直接退出
 int ReadLogWrap::sendAbortMessage() const
 {
@@ -368,6 +380,7 @@ private:
 		sqlca sqlca{};
 		rc_ = init_info_and_lris(rlw.time_off_set(), rlw.get_current_lri(), rlw.get_end_lri_());
 		LOG_DEBUG("init_info_and_lris rc_:{}", rc_);
+		LOG_INFO("out start lri:{}.{}.{}", tool::reverse_value(rlw.get_current_lri().lriType), tool::reverse_value(rlw.get_current_lri().part1), tool::reverse_value(rlw.get_current_lri().part2));
 
 		if (rc_ < 0)
 			return rc_;
@@ -405,6 +418,8 @@ private:
 
 			// Extract a log record from the database logs, and
 			// read the next log sequence asynchronously.
+
+			rlw.sendHeartbeatMessage();
 
 			rc_ = db2ReadLog(db2_version_, &read_log_input_, &sqlca);
 			if (sqlca.sqlcode != SQLU_RLOG_READ_TO_CURRENT)
@@ -461,121 +476,508 @@ private:
 	}
 
 	//小于0表示获取lri失败
+	// int64_t init_info_and_lris1(int64_t timeOffset, db2LRI& outStartLri, db2LRI& outEndLri)
+	// {
+	// 	rc_ = init_read_log_struct();
+	// 	if (rc_ < 0)
+	// 		return rc_;
+
+	// 	{
+	// 		//装载end lri
+	// 		outEndLri.lriType = read_log_info_.initialLRI.lriType;
+	// 		outEndLri.part1 = (decltype(outEndLri.part1))-1;
+	// 		outEndLri.part2 = (decltype(outEndLri.part2))-1;
+
+	// 		tool::reverse_bytes(&outEndLri.part1);
+	// 		tool::reverse_bytes(&outEndLri.part2);
+	// 	}
+	// 	LOG_DEBUG("outStartLri.lriType:{}", outStartLri.lriType);
+	// 	LOG_DEBUG("outStartLri.part1:{}", outStartLri.part1);
+	// 	LOG_DEBUG("outStartLri.part2:{}", outStartLri.part2);
+	// 	if (outStartLri.lriType || outStartLri.part1 || outStartLri.part2)//既然有值,在此结束
+	// 		return 0;
+	// 	LOG_DEBUG("startLri.......");
+
+	// 	db2LRI startLri;
+	// 	//从db2来的数值进行大小比较，需翻转
+	// 	if (tool::reverse_value(read_log_info_.initialLRI.part1) > tool::reverse_value(read_log_info_.nextStartLRI.part1))
+	// 		memcpy(&startLri, &(read_log_info_.nextStartLRI), sizeof(startLri));//从db2来的又返回db2，不需要翻转
+	// 	else
+	// 		memcpy(&startLri, &(read_log_info_.initialLRI), sizeof(startLri));//从db2来的又返回db2，不需要翻转
+
+	// 	outStartLri = startLri;
+	// 	LOG_DEBUG("timeOffset:{}", timeOffset);
+
+	// 	if (timeOffset <= 0)//既然没有配置timeOffset,在此结束,使用init_read_log_struct查询出来的结果
+	// 		return 0;
+
+	// 	//下方开始进行lri跳转
+
+	// 	db2LRI leftLri = startLri; //下界lri
+	// 	db2LRI lastLri;
+
+	// 	read_log_input_.iCallerAction = DB2READLOG_READ;
+	// 	read_log_input_.iLogBufferSize = log_buffer_.size();
+	// 	read_log_input_.iFilterOption = DB2READLOG_FILTER_ON;
+
+	// 	//之所以开始这么大，是因为找不到日志要很久才返回
+	// 	int64_t jump_size_start = (int64_t)1 << 58;
+	// 	int64_t jump_size_min = jump_size_start >> 57;
+	// 	// int64_t jump_size_max = jump_size_start << 4;
+	// 	int64_t lri_time;
+	// 	int64_t jump_size = jump_size_start;
+	// 	LOG_DEBUG("time off set:{}", timeOffset);
+
+	// 	startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);
+
+	// 	sqlca sqlca{};
+	// 	while (true) {
+
+	// 		LOG_DEBUG("jump size:{}", jump_size);
+	// 		LOG_DEBUG("start lri:{}.{}.{}", tool::reverse_value(startLri.lriType), tool::reverse_value(startLri.part1), tool::reverse_value(startLri.part2));
+
+	// 		lastLri = startLri;//记录开始的Lri, get_time_of_lri里 startLri会被修改
+	// 		lri_time = get_time_of_lri(db2_version_, read_log_input_, read_log_info_, sqlca, outEndLri, startLri, log_buffer_.data());
+	// 		LOG_DEBUG("lri time:{}", lri_time);
+
+	// 		if (lri_time > 0)//lri时间有意义
+	// 		{
+	// 			if (lri_time < timeOffset)//lri的时间发生在offset之前，比offset小
+	// 			{
+	// 				if (lri_time > 0)
+	// 				{
+	// 					outStartLri = lastLri;
+	// 					leftLri = lastLri;//下界右移
+	// 					LOG_INFO("get useful time:{}", lri_time);
+	// 					LOG_INFO("set start lri:{}.{}.{}", tool::reverse_value(outStartLri.lriType), tool::reverse_value(outStartLri.part1), tool::reverse_value(outStartLri.part2));
+	// 				}
+	// 				if (jump_size == jump_size_min)//现在已经跳跃了足够多次
+	// 					break;
+	// 				startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);//从下界移动
+	// 			}
+	// 			else//lri_time不大于offset,jump_size减少一半
+	// 			{
+	// 				jump_size = jump_size >> 1;
+	// 				if (jump_size == jump_size_min)//现在已经跳跃了足够多次
+	// 					break;
+	// 				startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);//从下界移动
+	// 			}
+	// 		}
+	// 		else if (lri_time == 0)//找不到有效日志
+	// 		{
+	// 			leftLri = lastLri;//下界移动到找不到日志时间的地方，继续寻找下一条日志
+	// 			startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);
+	// 			//startLri = readLogInfo.nextStartLRI;//找不到有效日期就在下一个lri里找
+	// 		}
+	// 		else if (lri_time == SQLU_RLOG_INVALID_PARM)//lri越界缩短起跳范围，jump_size减少一半
+	// 		{
+	// 			jump_size = jump_size >> 1;
+	// 			if (jump_size == jump_size_min)//现在已经跳跃了足够多次
+	// 				break;
+	// 			startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);//从下界移动
+	// 		}
+	// 		else if (lri_time == SQLU_RLOG_EXTENT_REQUIRED)//lri日志被清理，增加起跳范围
+	// 		{
+	// 			leftLri = lastLri;//下界移动到被清理日志的地方
+	// 			if (jump_size == jump_size_min)//现在已经跳跃了足够多次
+	// 				break;
+	// 			startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);
+	// 		}
+	// 		else//其余按越界处理
+	// 		{
+	// 			jump_size = jump_size >> 1;
+	// 			if (jump_size == jump_size_min)//现在已经跳跃了足够多次
+	// 				break;
+	// 			startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);//从下界移动
+	// 		}
+	// 	}
+
+	// 	LOG_INFO("out start lri:{}.{}.{}", tool::reverse_value(outStartLri.lriType), tool::reverse_value(outStartLri.part1), tool::reverse_value(outStartLri.part2));
+	// 	return 0;
+	// }
+
+// 	int64_t init_info_and_lris(int64_t timeOffset, db2LRI& outStartLri, db2LRI& outEndLri)
+// 	{
+// 		rc_ = init_read_log_struct();
+// 		if (rc_ < 0) return rc_;
+
+// 		{
+// 			//装载end lri
+// 			outEndLri.lriType = read_log_info_.initialLRI.lriType;
+// 			outEndLri.part1 = (decltype(outEndLri.part1))-1;
+// 			outEndLri.part2 = (decltype(outEndLri.part2))-1;
+
+// 			tool::reverse_bytes(&outEndLri.part1);
+// 			tool::reverse_bytes(&outEndLri.part2);
+// 		}
+
+// 		if (outStartLri.lriType || outStartLri.part1 || outStartLri.part2)//既然有值,在此结束
+// 			return 0;
+
+// 		LOG_DEBUG("start finding lri......., timeOffset:{}", timeOffset);
+
+// 		//装载end lri
+// 		outEndLri.lriType = read_log_info_.initialLRI.lriType;
+// 		outEndLri.part1 = (decltype(outEndLri.part1))0xFFFFFFFFFFFF;
+// 		outEndLri.part2 = (decltype(outEndLri.part2))-1;
+// 		tool::reverse_bytes(&outEndLri.lriType); tool::reverse_bytes(&outEndLri.part1); tool::reverse_bytes(&outEndLri.part2);
+
+// 		db2LRI currLri;
+// 		//从db2来的数值进行大小比较，需翻转
+// 		bool log_wrapped;
+// 		if (tool::reverse_value(read_log_info_.initialLRI.part1) > tool::reverse_value(read_log_info_.nextStartLRI.part1)) {
+// 			// memcpy(&currLri, &(read_log_info_.nextStartLRI), sizeof(currLri));//从db2来的又返回db2，不需要翻转
+// 			memcpy(&currLri, &(read_log_info_.initialLRI), sizeof(currLri));//从db2来的又返回db2，不需要翻转
+// 			LOG_DEBUG("log wrap around");
+// 			log_wrapped = true;
+// 		} else{ 
+// 			memcpy(&currLri, &(read_log_info_.initialLRI), sizeof(currLri));//从db2来的又返回db2，不需要翻转
+// 			LOG_DEBUG("normal log");
+// 			log_wrapped = false;
+// 		}
+
+// 		//既然没有配置timeOffset,在此结束,使用init_read_log_struct查询出来的结果
+// 		if (timeOffset < 0) {
+// 			outStartLri = read_log_info_.initialLRI;
+// 			return 0;
+// 		}
+
+// 		//下方开始进行lri跳转
+// 		read_log_input_.iCallerAction = DB2READLOG_READ;
+// 		read_log_input_.iLogBufferSize = log_buffer_.size();
+// 		read_log_input_.iFilterOption = DB2READLOG_FILTER_ON;
+
+// 		sqlca sqlca{};
+// 		int64_t lri_time = get_time_of_lri(db2_version_, read_log_input_, read_log_info_, sqlca, outEndLri, currLri, log_buffer_.data());
+// 		if (lri_time > 0 && timeOffset < lri_time) {
+// 			outStartLri = currLri;
+// 			return 0;
+// 		}
+
+// 		db2LRI leftLri, rightLri;
+// 		bool first_part_searched = false;
+// 		db2LRI initial_lri = read_log_info_.initialLRI;
+// 		db2LRI result1 = {0}, result2 = {0};
+// 		int64_t lri_time1 = 0, lri_time2 = 0;
+// search_the_other_part:
+// 		if (!first_part_searched) {
+// 			if (log_wrapped) {
+// 				leftLri = {0}, rightLri = initial_lri;
+// 			} else {
+// 				leftLri = initial_lri, rightLri = outEndLri;
+// 			}
+// 		} else {
+// 			if (log_wrapped) {
+// 				leftLri = initial_lri, rightLri = outEndLri;
+// 			} else {
+// 				leftLri = {0}, rightLri = initial_lri;
+// 			}
+// 		}
+// 		while (tool::reverse_value(leftLri.part1) < tool::reverse_value(rightLri.part1)) {
+// 			LOG_DEBUG("leftLri: {}.{}.{}", leftLri.lriType, leftLri.part1, leftLri.part2);
+// 			LOG_DEBUG("rightLri: {}.{}.{}", rightLri.lriType, rightLri.part1, rightLri.part2);
+// 			currLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + (tool::reverse_value(rightLri.part1) - tool::reverse_value(leftLri.part1)) / 2);
+// 			currLri.part2 = tool::reverse_value(tool::reverse_value(leftLri.part2) + (tool::reverse_value(rightLri.part2) - tool::reverse_value(leftLri.part2)) / 2);
+// 			LOG_DEBUG("current lri:{}.{}.{}", currLri.lriType, currLri.part1, currLri.part2);
+
+// 			lri_time = get_time_of_lri(db2_version_, read_log_input_, read_log_info_, sqlca, outEndLri, currLri, log_buffer_.data());
+// 			LOG_DEBUG("lri time:{}", lri_time);
+
+// 			//找不到有效日志或者lri日志被清理
+// 			if (lri_time == 0 || lri_time == SQLU_RLOG_EXTENT_REQUIRED) {				
+// 				rightLri = currLri;
+// 				continue;
+// 			}
+
+// 			//lri越界
+// 			if (lri_time == SQLU_RLOG_INVALID_PARM || lri_time < 0) {
+// 				rightLri = currLri;
+// 				continue;
+// 			}
+
+// 			LOG_DEBUG("firstReadLRI part1: {}, nextStartLRI part1: {}", read_log_info_.firstReadLRI.part1, read_log_info_.nextStartLRI.part1);
+
+// 			// lri_time > 0, lri时间有意义
+// 			if (lri_time == timeOffset) {
+// 				outStartLri = read_log_info_.firstReadLRI;
+// 				LOG_DEBUG("found lri_time == timeOffset");
+// 				return 0;
+// 			}
+// 			if (lri_time < timeOffset) {
+// 				if (leftLri.part1 == read_log_info_.firstReadLRI.part1 && leftLri.part2 == read_log_info_.firstReadLRI.part2) {
+// 					LOG_DEBUG("lri_time < timeOffset and cannot move leftLri");
+// 					break;
+// 				}
+// 				leftLri = read_log_info_.firstReadLRI;
+// 				leftLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + 1);
+// 				leftLri.part2 = tool::reverse_value(tool::reverse_value(leftLri.part2) + 1);
+// 			} else {
+// 				if (rightLri.part1 == read_log_info_.firstReadLRI.part1 && rightLri.part2 == read_log_info_.firstReadLRI.part2) {
+// 					LOG_DEBUG("lri_time > timeOffset and cannot move rightLri");
+// 					break;
+// 				}
+// 				rightLri = read_log_info_.firstReadLRI;
+// 			}
+// 		}
+// 		LOG_DEBUG("leftLri lri:{}.{}.{}", leftLri.lriType, leftLri.part1, leftLri.part2);
+// 		LOG_DEBUG("rightLri lri:{}.{}.{}", rightLri.lriType, rightLri.part1, rightLri.part2);
+
+// 		// db2LRI preLri = leftLri;
+// 		// for (currLri = leftLri; tool::reverse_value(currLri.part1) < tool::reverse_value(rightLri.part1); )
+// 		// {
+// 		// 	LOG_DEBUG("currLri: {},{},{}", currLri.lriType, currLri.part1, currLri.part2);
+// 		// 	lri_time = get_time_of_lri(db2_version_, read_log_input_, read_log_info_, sqlca, outEndLri, currLri, log_buffer_.data());
+// 		// 	LOG_DEBUG("lri time:{}", lri_time);
+// 		// 	if (lri_time < 0) {
+// 		// 		currLri.part1 = tool::reverse_value(tool::reverse_value(currLri.part1) + 1);
+// 		// 		currLri.part2 = tool::reverse_value(tool::reverse_value(currLri.part2) + 1);
+// 		// 		continue;
+// 		// 	}
+// 		// 	if (lri_time == 0) {
+// 		// 		LOG_DEBUG("lri_time should not be 0");
+// 		// 		break;
+// 		// 	}
+// 		// 	if (lri_time == timeOffset) {
+// 		// 		outStartLri = currLri;
+// 		// 		return 0;
+// 		// 	}
+// 		// 	if (lri_time > timeOffset) {
+// 		// 		break;
+// 		// 	}
+// 		// 	// lri_time < timeOffset
+// 		// 	if (tool::reverse_value(currLri.part1) < tool::reverse_value(read_log_info_.firstReadLRI.part1)) {
+// 		// 		currLri = read_log_info_.firstReadLRI;
+// 		// 		// if (tool::reverse_value(preLri.part1) == tool::reverse_value(currLri.part1)) break;
+// 		// 		preLri = currLri;
+// 		// 	}
+// 		// 	currLri.part1 = tool::reverse_value(tool::reverse_value(currLri.part1) + 1);
+// 		// 	currLri.part2 = tool::reverse_value(tool::reverse_value(currLri.part2) + 1);
+// 		// }
+
+// 		if (!first_part_searched) {
+// 			first_part_searched = true;
+// 			result1 = currLri;
+// 			lri_time1 = lri_time;
+// 			LOG_DEBUG("lri_time1:{}", lri_time1);
+// 			LOG_DEBUG("result1 lri:{}.{}.{}", result1.lriType, result1.part1, result1.part2);
+// 			goto search_the_other_part;
+// 		} else {
+// 			result2 = currLri;
+// 			lri_time2 = lri_time;
+// 			LOG_DEBUG("lri_time2:{}", lri_time2);
+// 			LOG_DEBUG("result2 lri:{}.{}.{}", result2.lriType, result2.part1, result2.part2);
+// 		}
+
+// 		if (lri_time1 > 0 && lri_time2 <= 0) {
+// 			outStartLri = result1;
+// 			LOG_DEBUG("using result1");
+// 			return 0;
+// 		}
+// 		if (lri_time2 > 0 && lri_time1 <= 0) {
+// 			outStartLri = result2;
+// 			LOG_DEBUG("using result2");
+// 			return 0;
+// 		}
+// 		if (lri_time1 > 0 && lri_time2 > 0) {
+// 			int64_t delta1 = abs(timeOffset - lri_time1);
+// 			int64_t delta2 = abs(timeOffset - lri_time2);
+// 			if (delta1 < delta2) {
+// 				outStartLri = result1;
+// 				LOG_DEBUG("using result1");
+// 				return 0;
+// 			} else {
+// 				outStartLri = result2;
+// 				LOG_DEBUG("using result2");
+// 				return 0;
+// 			}
+// 		}
+// 		LOG_INFO("lri not found");
+// 		outStartLri = {0};
+// 		return -1;
+// 	}
+
 	int64_t init_info_and_lris(int64_t timeOffset, db2LRI& outStartLri, db2LRI& outEndLri)
 	{
 		rc_ = init_read_log_struct();
-		if (rc_ < 0)
-			return rc_;
+		if (rc_ < 0) return rc_;
 
 		{
 			//装载end lri
 			outEndLri.lriType = read_log_info_.initialLRI.lriType;
-			outEndLri.part1 = (decltype(outEndLri.part1))-1;
+			outEndLri.part1 = (decltype(outEndLri.part1))0xFFFFFFFFFFFF;
 			outEndLri.part2 = (decltype(outEndLri.part2))-1;
 
 			tool::reverse_bytes(&outEndLri.part1);
 			tool::reverse_bytes(&outEndLri.part2);
 		}
-		LOG_DEBUG("outStartLri.lriType:{}", outStartLri.lriType);
-		LOG_DEBUG("outStartLri.part1:{}", outStartLri.part1);
-		LOG_DEBUG("outStartLri.part2:{}", outStartLri.part2);
+
 		if (outStartLri.lriType || outStartLri.part1 || outStartLri.part2)//既然有值,在此结束
 			return 0;
-		LOG_DEBUG("startLri.......");
 
-		db2LRI startLri;
+		LOG_DEBUG("start finding lri......., timeOffset:{}", timeOffset);
+
+		//装载end lri
+		outEndLri.lriType = read_log_info_.initialLRI.lriType;
+		outEndLri.part1 = (decltype(outEndLri.part1))0xFFFFFFFFFFFF;
+		outEndLri.part2 = (decltype(outEndLri.part2))-1;
+		tool::reverse_bytes(&outEndLri.lriType); tool::reverse_bytes(&outEndLri.part1); tool::reverse_bytes(&outEndLri.part2);
+
+		db2LRI currLri;
 		//从db2来的数值进行大小比较，需翻转
-		if (tool::reverse_value(read_log_info_.initialLRI.part1) > tool::reverse_value(read_log_info_.nextStartLRI.part1))
-			memcpy(&startLri, &(read_log_info_.nextStartLRI), sizeof(startLri));//从db2来的又返回db2，不需要翻转
-		else
-			memcpy(&startLri, &(read_log_info_.initialLRI), sizeof(startLri));//从db2来的又返回db2，不需要翻转
+		bool log_wrapped;
+		if (tool::reverse_value(read_log_info_.initialLRI.part1) > tool::reverse_value(read_log_info_.nextStartLRI.part1)) {
+			// memcpy(&currLri, &(read_log_info_.nextStartLRI), sizeof(currLri));//从db2来的又返回db2，不需要翻转
+			memcpy(&currLri, &(read_log_info_.initialLRI), sizeof(currLri));//从db2来的又返回db2，不需要翻转
+			LOG_DEBUG("log wrap around");
+			log_wrapped = true;
+		} else{ 
+			memcpy(&currLri, &(read_log_info_.initialLRI), sizeof(currLri));//从db2来的又返回db2，不需要翻转
+			LOG_DEBUG("normal log");
+			log_wrapped = false;
+		}
 
-		outStartLri = startLri;
-		LOG_DEBUG("timeOffset:{}", timeOffset);
-
-		if (timeOffset <= 0)//既然没有配置timeOffset,在此结束,使用init_read_log_struct查询出来的结果
+		//既然没有配置timeOffset,在此结束,使用init_read_log_struct查询出来的结果
+		if (timeOffset < 0) {
+			outStartLri = read_log_info_.initialLRI;
 			return 0;
+		}
 
 		//下方开始进行lri跳转
-
-		db2LRI leftLri = startLri; //下界lri
-		db2LRI lastLri;
-
 		read_log_input_.iCallerAction = DB2READLOG_READ;
 		read_log_input_.iLogBufferSize = log_buffer_.size();
 		read_log_input_.iFilterOption = DB2READLOG_FILTER_ON;
 
-		enum { jump_size_start = 1 << 25, jump_size_min = jump_size_start >> 24, jump_size_max = jump_size_start << 4 };//之所以开始这么大，是因为找不到日志要很久才返回
-		int64_t lri_time;
-		int64_t jump_size = jump_size_start;
-		LOG_DEBUG("time off set:{}", timeOffset);
-
-		startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);
-
 		sqlca sqlca{};
-		while (true) {
-
-			LOG_DEBUG("jump size:{}", jump_size);
-			LOG_DEBUG("start lri:{}.{}.{}", tool::reverse_value(startLri.lriType), tool::reverse_value(startLri.part1), tool::reverse_value(startLri.part2));
-
-			lastLri = startLri;//记录开始的Lri, get_time_of_lri里 startLri会被修改
-			lri_time = get_time_of_lri(db2_version_, read_log_input_, read_log_info_, sqlca, outEndLri, startLri, log_buffer_.data());
-			LOG_DEBUG("lri time:{}", lri_time);
-
-			if (lri_time > 0)//lri时间有意义
-			{
-				if (lri_time < timeOffset)//lri的时间发生在offset之前，比offset小
-				{
-					if (lri_time > 0)
-					{
-						outStartLri = lastLri;
-						leftLri = lastLri;//下界右移
-						LOG_INFO("get useful time:{}", lri_time);
-						LOG_INFO("set start lri:{}.{}.{}", tool::reverse_value(outStartLri.lriType), tool::reverse_value(outStartLri.part1), tool::reverse_value(outStartLri.part2));
-					}
-					if (jump_size == jump_size_min)//现在已经跳跃了足够多次
-						break;
-					startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);//从下界移动
-				}
-				else//lri_time不大于offset,jump_size减少一半
-				{
-					jump_size = jump_size >> 1;
-					if (jump_size == jump_size_min)//现在已经跳跃了足够多次
-						break;
-					startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);//从下界移动
-				}
+		int64_t lri_time = 0;
+		db2LRI leftLri, rightLri;
+		bool first_part_searched = false;
+		db2LRI initial_lri = read_log_info_.initialLRI;
+		db2LRI result1 = {0}, result2 = {0};
+		int64_t lri_time1 = 0, lri_time2 = 0;
+search_the_other_part:
+		if (!first_part_searched) {
+			if (log_wrapped) {
+				leftLri = {1, 0, 0}, rightLri = initial_lri;
+			} else {
+				leftLri = initial_lri, rightLri = outEndLri;
 			}
-			else if (lri_time == 0)//找不到有效日志
-			{
-				leftLri = lastLri;//下界移动到找不到日志时间的地方，继续寻找下一条日志
-				startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);
-				//startLri = readLogInfo.nextStartLRI;//找不到有效日期就在下一个lri里找
-			}
-			else if (lri_time == SQLU_RLOG_INVALID_PARM)//lri越界缩短起跳范围，jump_size减少一半
-			{
-				jump_size = jump_size >> 1;
-				if (jump_size == jump_size_min)//现在已经跳跃了足够多次
-					break;
-				startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);//从下界移动
-			}
-			else if (lri_time == SQLU_RLOG_EXTENT_REQUIRED)//lri日志被清理，增加起跳范围
-			{
-				leftLri = lastLri;//下界移动到被清理日志的地方
-				if (jump_size == jump_size_min)//现在已经跳跃了足够多次
-					break;
-				startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);
-			}
-			else//其余按越界处理
-			{
-				jump_size = jump_size >> 1;
-				if (jump_size == jump_size_min)//现在已经跳跃了足够多次
-					break;
-				startLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + jump_size);//从下界移动
+		} else {
+			if (log_wrapped) {
+				leftLri = initial_lri, rightLri = outEndLri;
+			} else {
+				leftLri = {1, 0, 0}, rightLri = initial_lri;
 			}
 		}
 
-		LOG_INFO("out start lri:{}.{}.{}", tool::reverse_value(outStartLri.lriType), tool::reverse_value(outStartLri.part1), tool::reverse_value(outStartLri.part2));
-		return 0;
+		bool valid_lri_time = false;
+		db2LRI pre_lri = leftLri;
+		int64_t pre_lri_time = 0;
+		while (tool::reverse_value(leftLri.part1) < tool::reverse_value(rightLri.part1)) {
+			LOG_DEBUG();
+			LOG_DEBUG("leftLri: {}.{}.{}", leftLri.lriType, leftLri.part1, leftLri.part2);
+			LOG_DEBUG("rightLri: {}.{}.{}", rightLri.lriType, rightLri.part1, rightLri.part2);
+			currLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + (tool::reverse_value(rightLri.part1) - tool::reverse_value(leftLri.part1)) / 2);
+			currLri.part2 = tool::reverse_value(tool::reverse_value(leftLri.part2) + (tool::reverse_value(rightLri.part2) - tool::reverse_value(leftLri.part2)) / 2);
+			LOG_DEBUG("current lri:{}.{}.{}", currLri.lriType, currLri.part1, currLri.part2);
+
+			lri_time = get_time_of_lri(db2_version_, read_log_input_, read_log_info_, sqlca, outEndLri, currLri, log_buffer_.data());
+			LOG_DEBUG("lri time:{}", lri_time);
+
+			//找不到有效日志或者lri日志被清理
+			if (lri_time <= 0 || lri_time == SQLU_RLOG_EXTENT_REQUIRED) {
+				if (valid_lri_time) {
+					// 如果之前lri有效，但是本轮lri无效，则使用之前的lri并立即break。
+					LOG_DEBUG("using pre_lri: {}.{}.{}", pre_lri.lriType, pre_lri.part1, pre_lri.part2);
+					rightLri = pre_lri;
+					lri_time = pre_lri_time;
+					break;
+				}
+				rightLri = currLri;
+				continue;
+			}
+
+			LOG_DEBUG("firstReadLRI part1: {}, nextStartLRI part1: {}", read_log_info_.firstReadLRI.part1, read_log_info_.nextStartLRI.part1);
+
+			valid_lri_time = true;
+			pre_lri = read_log_info_.firstReadLRI;
+			pre_lri_time = lri_time;
+			// lri_time > 0, lri时间有意义
+			if (lri_time == timeOffset) {
+				outStartLri = read_log_info_.firstReadLRI;
+				LOG_DEBUG("found lri_time == timeOffset");
+				return 0;
+			}
+
+			if (lri_time < timeOffset) {
+				if (leftLri.part1 == read_log_info_.firstReadLRI.part1 && leftLri.part2 == read_log_info_.firstReadLRI.part2) {
+					LOG_DEBUG("lri_time < timeOffset and cannot move leftLri");
+					// break;	
+				}
+				leftLri = currLri;
+				leftLri.part1 = tool::reverse_value(tool::reverse_value(leftLri.part1) + 1);
+				leftLri.part2 = tool::reverse_value(tool::reverse_value(leftLri.part2) + 1);
+			} else {
+				if (rightLri.part1 == read_log_info_.firstReadLRI.part1 && rightLri.part2 == read_log_info_.firstReadLRI.part2) {
+					LOG_DEBUG("lri_time > timeOffset and cannot move rightLri");
+					// break;
+				}
+				rightLri = currLri;
+				if (tool::reverse_value(rightLri.part1) < 1 || tool::reverse_value(rightLri.part2) < 1) {
+					break;
+				}
+				rightLri.part1 = tool::reverse_value(tool::reverse_value(rightLri.part1) - 1);
+				rightLri.part2 = tool::reverse_value(tool::reverse_value(rightLri.part2) - 1);
+			}
+		}
+		LOG_DEBUG("leftLri lri:{}.{}.{}", leftLri.lriType, leftLri.part1, leftLri.part2);
+		LOG_DEBUG("rightLri lri:{}.{}.{}", rightLri.lriType, rightLri.part1, rightLri.part2);
+
+		if (lri_time > 0 && abs(timeOffset - lri_time) < 60) {
+			outStartLri = currLri;
+			LOG_DEBUG("Approximately found.");
+			return 0;
+		}
+
+		if (!first_part_searched) {
+			first_part_searched = true;
+			result1 = rightLri;
+			lri_time1 = lri_time;
+			LOG_DEBUG("lri_time1:{}", lri_time1);
+			LOG_DEBUG("result1 lri:{}.{}.{}", result1.lriType, result1.part1, result1.part2);
+			goto search_the_other_part;
+		} else {
+			result2 = rightLri;
+			lri_time2 = lri_time;
+			LOG_DEBUG("lri_time2:{}", lri_time2);
+			LOG_DEBUG("result2 lri:{}.{}.{}", result2.lriType, result2.part1, result2.part2);
+		}
+
+		if (lri_time1 > 0 && lri_time2 <= 0) {
+			outStartLri = result1;
+			LOG_DEBUG("using result1");
+			return 0;
+		}
+		if (lri_time2 > 0 && lri_time1 <= 0) {
+			outStartLri = result2;
+			LOG_DEBUG("using result2");
+			return 0;
+		}
+		if (lri_time1 > 0 && lri_time2 > 0) {
+			int64_t delta1 = abs(timeOffset - lri_time1);
+			int64_t delta2 = abs(timeOffset - lri_time2);
+			if (delta1 < delta2) {
+				outStartLri = result1;
+				LOG_DEBUG("using result1");
+				return 0;
+			} else {
+				outStartLri = result2;
+				LOG_DEBUG("using result2");
+				return 0;
+			}
+		}
+		LOG_INFO("lri not found");
+		outStartLri = {0};
+		return -1;
 	}
 
 	//返回0表示没有找到时间,大于0正确
@@ -620,6 +1022,7 @@ private:
 		sqluint16 recordType;
 		sqluint16 recordFlag;
 
+		LOG_DEBUG("get_first_commit_time numLogRecords: {}", numLogRecords);
 		for (sqluint32 logRecordNb = 0; logRecordNb < numLogRecords; logRecordNb++)
 		{
 			recordBuffer += sizeof(db2ReadLogFilterData);
@@ -629,11 +1032,14 @@ private:
 			recordFlag = tool::reverse_value(*(sqluint16*)(recordBuffer + sizeof(sqluint32) + sizeof(sqluint16)));
 
 			result = get_commit_time(recordBuffer, recordType, recordFlag);
-			if (result > 0)
+			if (result > 0) {
+				LOG_DEBUG("get_first_commit_time result: {}", result);
 				return result;
+			}
 			recordBuffer += recordSize;
 		}
 
+		LOG_DEBUG("get_first_commit_time result: {}", result);
 		return result;
 	}
 
@@ -648,8 +1054,9 @@ private:
 
 		db2ReadLog(versionNumber, &readLogInput, &sqlca);
 
-		if (sqlca.sqlcode < 0)
+		if (sqlca.sqlcode < 0) {
 			return sqlca.sqlcode;
+		}
 
 		else if (sqlca.sqlcode == 0 || sqlca.sqlcode == SQLU_RLOG_READ_TO_CURRENT)
 		{

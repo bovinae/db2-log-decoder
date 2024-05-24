@@ -266,3 +266,6 @@ __pycache__/
 .visualgdb
 /include/spdlog
 /logv9.zip
+
+.vscode/
+DB2PlugInDataSource/build/

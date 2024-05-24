@@ -215,13 +215,16 @@ namespace tapdata
 
             struct sqle_node_tcpip TCPIPprotocol;
             strncpy(TCPIPprotocol.hostname, hostname.c_str(), SQL_HOSTNAME_SZ + 1);
+            TCPIPprotocol.hostname[sizeof(TCPIPprotocol.hostname) - 1] = '\0';
             strncpy(TCPIPprotocol.service_name, service_name.c_str(), SQL_SERVICE_NAME_SZ + 1);
+            TCPIPprotocol.service_name[sizeof(TCPIPprotocol.service_name) - 1] = '\0';
 
             struct sqlca sqlca;
             do
             {
                 node_alias.first = tool::random_string(SQL_NNAME_SZ);
                 strncpy(newNode.nodename, node_alias.first.c_str(), SQL_NNAME_SZ + 1);
+                newNode.nodename[sizeof(newNode.nodename) - 1] = '\0';
                 sqlectnd(&newNode, &TCPIPprotocol, &sqlca);
             } while (sqlca.sqlcode == DB2_NODE_ALREADY_EXISTS || sqlca.sqlcode == DB2_NODE_NAME_INVALID);
 
@@ -247,7 +250,7 @@ namespace tapdata
                     (char*)node_alias.first.c_str(),
                     nullptr,
                     "",
-                    SQL_AUTHENTICATION_SERVER,
+                    SQL_AUTHENTICATION_NOT_SPEC, // SQL_AUTHENTICATION_SERVER
                     NULL,
                     &sqlca);
             } while (sqlca.sqlcode == DB2_DB_ALIAS_ALREADY_EXISTS || sqlca.sqlcode == DB2_DB_ALIAS_INVALID);

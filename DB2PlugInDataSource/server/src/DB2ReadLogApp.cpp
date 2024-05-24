@@ -74,6 +74,7 @@ namespace tapdata
 					std::bind(&PushReadLogClient::push_reorg_table, &client, placeholders::_1),
 
 					std::bind(&PushReadLogClient::push_commit, &client, placeholders::_1),
+					std::bind(&PushReadLogClient::push_heartbeat, &client, placeholders::_1),
 					std::bind(&PushReadLogClient::push_abort, &client, placeholders::_1),
 
 					std::bind(&PushReadLogClient::flash_push, &client, placeholders::_1)

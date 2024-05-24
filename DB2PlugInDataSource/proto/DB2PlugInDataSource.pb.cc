@@ -583,39 +583,40 @@ const char descriptor_table_protodef_DB2PlugInDataSource_2eproto[] PROTOBUF_SECT
   "ION\020\006\022\017\n\013NOT_SUPPORT\020\007\022\021\n\rSHUTTING_DOWN\020"
   "\010\022\020\n\014PASSIVE_STOP\020\t*J\n\tTaskState\022\020\n\014TASK"
   "_RUNNING\020\000\022\017\n\013TASK_PAUSED\020\001\022\032\n\026TASK_STOP"
-  "_BY_EXCEPTION\020\002*_\n\tReadLogOp\022\013\n\007UNKNOWN\020"
+  "_BY_EXCEPTION\020\002*n\n\tReadLogOp\022\013\n\007UNKNOWN\020"
   "\000\022\014\n\010ROLLBACK\020\001\022\n\n\006COMMIT\020\002\022\n\n\006INSERT\020\003\022"
-  "\n\n\006UPDATE\020\004\022\n\n\006DELETE\020\005\022\007\n\003DDL\020\006*\?\n\020Push"
-  "ResponseCode\022\013\n\007PUSH_OK\020\000\022\r\n\tPUSH_STOP\020\001"
-  "\022\017\n\013PUSH_PAUSED\020\0022\230\006\n\020DB2ReadLogServer\0225"
-  "\n\004Ping\022\024.tapdata.PingRequest\032\025.tapdata.P"
-  "ingResponse\"\000\022C\n\nServerInfo\022\026.google.pro"
-  "tobuf.Empty\032\033.tapdata.ServerInfoResponse"
-  "\"\000\022H\n\021CreateReadLogTask\022\027.tapdata.ReadLo"
-  "gRequest\032\030.tapdata.ControlResponse\"\000\022K\n\021"
-  "DeleteReadLogTask\022\032.tapdata.TaskHandleRe"
-  "quest\032\030.tapdata.ControlResponse\"\000\022J\n\020Pau"
-  "seReadLogTask\022\032.tapdata.TaskHandleReques"
-  "t\032\030.tapdata.ControlResponse\"\000\022K\n\021ResumeR"
-  "eadLogTask\022\032.tapdata.TaskHandleRequest\032\030"
-  ".tapdata.ControlResponse\"\000\022h\n\025ListReadLo"
-  "gTaskStates\022%.tapdata.ListReadLogTaskSta"
-  "tesRequest\032&.tapdata.ListReadLogTaskStat"
-  "esResponse\"\000\022Y\n\023GetReadLogTaskState\022\032.ta"
-  "pdata.TaskHandleRequest\032$.tapdata.GetRea"
-  "dLogTaskStateResponse\"\000\022G\n\013PullReadLog\022\032"
-  ".tapdata.TaskHandleRequest\032\030.tapdata.Rea"
-  "dLogResponse\"\0000\001\022J\n\013PushReadLog\022\033.tapdat"
-  "a.PushReadLogRequest\032\034.tapdata.PushReadL"
-  "ogResponse\"\000B-\n\023io.tapdata.data.db2B\017Pro"
-  "toDB2ReadLogP\001\242\002\002PDb\006proto3"
+  "\n\n\006UPDATE\020\004\022\n\n\006DELETE\020\005\022\007\n\003DDL\020\006\022\r\n\tHEAR"
+  "TBEAT\020\007*\?\n\020PushResponseCode\022\013\n\007PUSH_OK\020\000"
+  "\022\r\n\tPUSH_STOP\020\001\022\017\n\013PUSH_PAUSED\020\0022\230\006\n\020DB2"
+  "ReadLogServer\0225\n\004Ping\022\024.tapdata.PingRequ"
+  "est\032\025.tapdata.PingResponse\"\000\022C\n\nServerIn"
+  "fo\022\026.google.protobuf.Empty\032\033.tapdata.Ser"
+  "verInfoResponse\"\000\022H\n\021CreateReadLogTask\022\027"
+  ".tapdata.ReadLogRequest\032\030.tapdata.Contro"
+  "lResponse\"\000\022K\n\021DeleteReadLogTask\022\032.tapda"
+  "ta.TaskHandleRequest\032\030.tapdata.ControlRe"
+  "sponse\"\000\022J\n\020PauseReadLogTask\022\032.tapdata.T"
+  "askHandleRequest\032\030.tapdata.ControlRespon"
+  "se\"\000\022K\n\021ResumeReadLogTask\022\032.tapdata.Task"
+  "HandleRequest\032\030.tapdata.ControlResponse\""
+  "\000\022h\n\025ListReadLogTaskStates\022%.tapdata.Lis"
+  "tReadLogTaskStatesRequest\032&.tapdata.List"
+  "ReadLogTaskStatesResponse\"\000\022Y\n\023GetReadLo"
+  "gTaskState\022\032.tapdata.TaskHandleRequest\032$"
+  ".tapdata.GetReadLogTaskStateResponse\"\000\022G"
+  "\n\013PullReadLog\022\032.tapdata.TaskHandleReques"
+  "t\032\030.tapdata.ReadLogResponse\"\0000\001\022J\n\013PushR"
+  "eadLog\022\033.tapdata.PushReadLogRequest\032\034.ta"
+  "pdata.PushReadLogResponse\"\000B-\n\023io.tapdat"
+  "a.data.db2B\017ProtoDB2ReadLogP\001\242\002\002PDb\006prot"
+  "o3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_DB2PlugInDataSource_2eproto_deps[1] = {
   &::descriptor_table_google_2fprotobuf_2fempty_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_DB2PlugInDataSource_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_DB2PlugInDataSource_2eproto = {
-  false, false, 3667, descriptor_table_protodef_DB2PlugInDataSource_2eproto, "DB2PlugInDataSource.proto", 
+  false, false, 3682, descriptor_table_protodef_DB2PlugInDataSource_2eproto, "DB2PlugInDataSource.proto", 
   &descriptor_table_DB2PlugInDataSource_2eproto_once, descriptor_table_DB2PlugInDataSource_2eproto_deps, 1, 18,
   schemas, file_default_instances, TableStruct_DB2PlugInDataSource_2eproto::offsets,
   file_level_metadata_DB2PlugInDataSource_2eproto, file_level_enum_descriptors_DB2PlugInDataSource_2eproto, file_level_service_descriptors_DB2PlugInDataSource_2eproto,
@@ -706,6 +707,7 @@ bool ReadLogOp_IsValid(int value) {
     case 4:
     case 5:
     case 6:
+    case 7:
       return true;
     default:
       return false;

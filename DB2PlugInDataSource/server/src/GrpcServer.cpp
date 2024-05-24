@@ -82,6 +82,7 @@ namespace tapdata
                 //gpr_time_add(gpr_now(GPR_CLOCK_REALTIME), gpr_time_from_millis(1, GPR_TIMESPAN)))
                 gpr_inf_future(GPR_CLOCK_REALTIME))
             );
+        LOG_DEBUG("connection is SHUTDOWN");
     }
 
 

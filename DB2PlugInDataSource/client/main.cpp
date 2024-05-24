@@ -7,6 +7,7 @@
 #include <vector>
 #include <sstream>
 #include <future>
+#include <signal.h>
 
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/channel.h>
@@ -87,7 +88,7 @@ public:
 		}
 	}
 
-	void CreateReadlogTaskV10(const std::string& id, std::vector<int>&& table_ids, int64_t start_time, const std::string& scn) {
+	void CreateReadlogTaskV10(const std::string& id, std::vector<int>&& table_ids, int64_t start_time, const std::string& scn, const std::string& host, const std::string& port, const std::string& db, const std::string& passwd) {
 		ControlResponse resp;
 
 		// Context for the client. It could be used to convey extra information to
@@ -111,12 +112,12 @@ public:
 		req.set_bigendian(true);
 #else
 
-		req.mutable_source()->set_databasename("easton"); // TESTDB
+		req.mutable_source()->set_databasename(db); // easton TESTDB
 		req.mutable_source()->set_databaseusername("db2inst1");
-		req.mutable_source()->set_databasepassword("Gotapd8!");
+		req.mutable_source()->set_databasepassword(passwd);
 		req.mutable_source()->set_databaseversion(DB2Veresion::V10);
-		req.mutable_source()->set_databasehostname("172.17.0.3"); // 192.168.1.132
-		req.mutable_source()->set_databaseservicename("50000");
+		req.mutable_source()->set_databasehostname(host); // 192.168.1.132 172.17.0.3
+		req.mutable_source()->set_databaseservicename(port); // "50008"
 
 		SourceTable table;
 		for (auto& id : table_ids)
@@ -362,7 +363,7 @@ private:
 };
 
 
-void test(DemoClient& client, DB2Veresion ver, int64_t start_time, std::vector<int>&& table_ids, const std::string& scn = std::string())
+void test(DemoClient& client, DB2Veresion ver, int64_t start_time, std::vector<int>&& table_ids, const std::string& scn, const std::string& host, const std::string& port, const std::string& db, const std::string& passwd)
 {
 	auto tid = std::this_thread::get_id();
 	std::stringstream sst;
@@ -405,9 +406,9 @@ void test(DemoClient& client, DB2Veresion ver, int64_t start_time, std::vector<i
 
 	if (ver == decltype(ver)::V10)
 	{
-		auto create_test_re = std::async([&sst, start_time, &table_ids, &client, scn]()
+		auto create_test_re = std::async([&sst, start_time, &table_ids, &client, scn, host, port, db, passwd]()
 			{
-				client.CreateReadlogTaskV10(sst.str(), std::move(table_ids), start_time, scn);
+				client.CreateReadlogTaskV10(sst.str(), std::move(table_ids), start_time, scn, host, port, db, passwd);
 			});
 
 		create_test_re.wait();
@@ -452,23 +453,54 @@ void test(DemoClient& client, DB2Veresion ver, int64_t start_time, std::vector<i
 #endif
 }
 
+void sig_int_proc(int sig_no)
+{
+	system("kill `ps -ef|grep -w \"db210_src_srv C\"|grep -v grep|awk '{print $2}'`");
+	raise(SIGTERM);
+}
 
 int main(int argc, char** argv)
 {
+	signal(SIGINT, sig_int_proc);
+
 	int64_t start_time = 0;
 	std::string scn{};
-	if (argc == 2)
+	std::string host = "192.168.1.132";
+	std::string port = "50000";
+	std::string db = "TESTDB";
+	std::string passwd = "Gotapd8!"; // Eo36_MCf
+	for (int i = 1; i < argc; i++)
 	{
-		try {
-			start_time = atoll(argv[1]);
-		}
-		catch (...)
+		if (strcmp(argv[i], "-st") == 0)
 		{
-			std::cerr << "error, check second param" << std::endl;
+			try {
+				start_time = atoll(argv[++i]);
+			}
+			catch (...)
+			{
+				std::cerr << "error, check second param" << std::endl;
+			}
 		}
-	} else if (argc == 3)
-	{
-		scn = argv[2];
+		else if (strcmp(argv[i], "-scn") == 0)
+		{
+			scn = argv[++i];
+		}
+		else if (strcmp(argv[i], "-host") == 0)
+		{
+			host = argv[++i];
+		}
+		else if (strcmp(argv[i], "-port") == 0)
+		{
+			port = argv[++i];
+		}
+		else if (strcmp(argv[i], "-db") == 0)
+		{
+			db = argv[++i];
+		}
+		else if (strcmp(argv[i], "-passwd") == 0)
+		{
+			passwd = argv[++i];
+		}
 	}
 
 #if 0
@@ -488,7 +520,7 @@ int main(int argc, char** argv)
 
 
 
-	test(clientv10, DB2Veresion::V10, start_time, std::move(table_ids), scn);
+	test(clientv10, DB2Veresion::V10, start_time, std::move(table_ids), scn, host, port, db, passwd);
 
 	return 0;
 }

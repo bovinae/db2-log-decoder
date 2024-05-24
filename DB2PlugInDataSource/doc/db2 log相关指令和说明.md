@@ -66,11 +66,12 @@ CREATE TABLE "DB2INST1"."TALLTYPE"  (
   DATA CAPTURE CHANGES;
 ```
 
-db2 "CREATE TABLE t1 (a varchar(256)) DATA CAPTURE CHANGES"
-db2 "CREATE TABLE t2 (a varchar(256), b varchar(128)) DATA CAPTURE CHANGES"
+FAQ: 
+1. QL1116N  A connection to or activation of database "TESTDB" failed because
+the database is in BACKUP PENDING state.  SQLSTATE=57019
 
-db2 "insert into t1 values('设置')"
-db2 "insert into t2 values('设置', '置设')"
+ans: db2 backup db testdb to /dev/null
 
-11001001 11101000
-11010110 11000011
+db2 activate db testdb
+
+./test_client -host 113.98.206.142 -db testdb -passwd 'Gotapd8!'

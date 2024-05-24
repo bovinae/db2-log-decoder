@@ -76,8 +76,8 @@ include_directories (proto)
 
 aux_source_directory (client CLIENT_SRCS)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g -O0 -std=c++17 ${CMAKE_CXX_FLAGS}")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -std=c++17 ${CMAKE_CXX_FLAGS}")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g -O0 -std=c++17 ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -std=c++17 ${CMAKE_CXX_FLAGS}")
 
 execute_process(COMMAND mkdir -m775 ${PROJECT_SOURCE_DIR}/../../app/DB2ReadLogServer/lib/ -p)
 #将第三方库，尤其是涉及到有软连接的库，全部放在lib.tgz里面去，平时不开启
