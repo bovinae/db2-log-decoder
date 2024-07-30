@@ -19,7 +19,7 @@ namespace tapdata
 
         static void quit(int reason = 0) noexcept;
         static void notify_one() noexcept;
-        static int exec() noexcept;
+        static int exec(bool is_s = false) noexcept;
         static bool keep_run() noexcept;
     protected:
         virtual void run() noexcept = 0;
@@ -33,3 +33,4 @@ namespace tapdata
         virtual void sig_dump_proc(int sig_no) = 0;
     };
 }
+

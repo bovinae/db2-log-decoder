@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
 			tapdata::DB2PlugInDataApp app;
 			LOG_INFO("DB2PlugInDataApp running");
 			LOG_INFO("version:{}", tapdata::LocalServerInfo);
-			return app.exec();
+			return app.exec(true);
 		}
 		catch (const exception& ex)
 		{

@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include "app.h"
 #include "log_imp.h"
+#include "multiprocess_mutex.h"
 
 namespace tapdata
 {
@@ -31,8 +32,9 @@ namespace tapdata
         mutex mutex_;
         condition_variable condition_variable_;
 
-        int exec()
+        int exec(bool is_s = false)
         {
+	    init_multi_process_mutex(is_s);
             unique_lock<decltype(mutex_)> lock{ mutex_ };
             if (keep_running_)
             {
@@ -40,6 +42,9 @@ namespace tapdata
                 condition_variable_.wait(lock);
             }
             LOG_INFO("app quit!, reason:{}", quit_reason_);
+            if (is_s) {
+                destroy_multi_process_mutex();
+            }
             return quit_reason_;
         }
 
@@ -100,9 +105,9 @@ namespace tapdata
         mess_loop.notify_one();
     }
 
-    int app::exec() noexcept
+    int app::exec(bool is_s) noexcept
     {
-        return mess_loop.exec();
+        return mess_loop.exec(is_s);
     }
 
     bool app::keep_run() noexcept
