@@ -95,6 +95,7 @@ message ReadLogRequest
     repeated SourceTable tables = 6;//如果tables不为空，那么不在该tables内的DML日志将会被过滤，如果tables为空，那么有一些DDL的消息回复
     ReaderSource source = 7;//数据库源读取（连接）配置
     WriterTarget target = 8;//数据库写回日志分析配置
+    bool cacheLri = 9; // 设置为true，测试数据库链接成功后，就开始后台读日志并记录lri以及对应的commit_time
 }
 
 message TaskHandleRequest

@@ -27,4 +27,3 @@ void destroy_multi_process_mutex();
 void multi_process_mutex_lock();
 
 void multi_process_mutex_unlock();
-

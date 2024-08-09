@@ -6,10 +6,13 @@
 #include <string>
 
 namespace tapdata {
+
    class LriRecorder
    {
    private:
-      sqlite3 *db;
+      sqlite3 *db_;
+      const std::string db_name_;
+      const std::string table_name_;
 
       static int callback(void *NotUsed, int argc, char **argv, char **azColName){
          int i;
@@ -21,15 +24,16 @@ namespace tapdata {
       }
 
    public:
-      LriRecorder();
+      LriRecorder(const std::string& lri_recorder_name);
       ~LriRecorder();
 
       int OpenDatabase();
-      int CreateTable(const std::string table_name);
-      int Insert(const std::string table_name, std::string lri, int time);
+      int CreateTable();
+      int Insert(std::string lri, int time);
       // query one record <= input time
-      int Query(const std::string table_name, std::string& lri, int& time);
-      int Delete(const std::string table_name, int time);
-      int DropTable(const std::string table_name);
+      int Query(std::string& lri, int& time);
+      int Delete(int time);
+      int DropTable();
    };
+
 }

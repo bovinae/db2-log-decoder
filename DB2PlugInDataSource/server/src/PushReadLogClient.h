@@ -104,10 +104,10 @@ namespace tapdata
 			{
 				grpc::ClientContext context;
 
-				//for (int i = 0; i < req_.logresponse().payload_size(); i++)
-				//{
-				//	 LOG_DEBUG("PushReadLog through grpc, index:{}, scn:{}", i, req_.logresponse().payload(i).scn());
-				//}
+				// for (int i = 0; i < req_.logresponse().payload_size(); i++)
+				// {
+				// 	LOG_DEBUG("PushReadLog through grpc, index:{}, scn:{}", i, req_.logresponse().payload(i).scn());
+				// }
 				const grpc::Status status = stub_->PushReadLog(&context, req_, &resp_);
 
 				if (!status.ok())

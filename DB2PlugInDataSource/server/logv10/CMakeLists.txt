@@ -12,10 +12,10 @@ aux_source_directory (../../share SHARE_SRCS)
 
 add_definitions(-DV10_CONFIG_SERVER_ADDRESS)
 
-add_executable(db210_src_srv ${SERVER_SRC_SRCS} ${SHARE_SRCS} dblogconn.cpp utilemb.C db2_log_version.cpp)
+add_executable(db210_src_srv ${SERVER_SRC_SRCS} ${SHARE_SRCS} dblogconn.cpp utilemb.C db2_log_version.cpp lri_recorder.cpp)
 
 target_link_libraries(db210_src_srv
--static-libgcc -static-libstdc++ libstdc++fs.a 
+-static-libgcc -static-libstdc++ libstdc++fs.a -lsqlite3
 db2
 DB2PlugGrpcProto pthread
 )

@@ -33,4 +33,3 @@ namespace tapdata
         virtual void sig_dump_proc(int sig_no) = 0;
     };
 }
-

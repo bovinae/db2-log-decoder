@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include <signal.h>
 #include "multiprocess_mutex.h"
+#include "lri_recorder.h"
 
 static const short sqlIsLiteral = SQL_IS_LITERAL;
 static const short sqlIsInputHvar = SQL_IS_INPUT_HVAR;
@@ -398,8 +399,8 @@ private:
 	int64_t read_log(int64_t sleep_interval, ReadLogWrap& rlw)
 	{
 		sqlca sqlca{};
-		rc_ = init_info_and_lris(rlw.time_off_set(), rlw.get_current_lri(), rlw.get_end_lri_());
-		LOG_DEBUG("init_info_and_lris rc_:{}", rc_);
+		rc_ = init_info_and_lris(rlw);
+		LOG_DEBUG("init info and lris rc_:{}", rc_);
 		LOG_INFO("out start lri:{}.{}.{}", tool::reverse_value(rlw.get_current_lri().lriType), tool::reverse_value(rlw.get_current_lri().part1), tool::reverse_value(rlw.get_current_lri().part2));
 
 		if (rc_ < 0)
@@ -849,32 +850,19 @@ private:
 		multi_process_mutex_unlock();
 		log_read_log_info(readLogInfo);
 
-		if (sqlca.sqlcode < 0) {
-			return sqlca.sqlcode;
-		}
-
-		if (sqlca.sqlcode != 0 && sqlca.sqlcode != SQLU_RLOG_READ_TO_CURRENT)
-		{
+		if (sqlca.sqlcode != 0) {
 			LOG_INFO("sql code:{}", sqlca.sqlcode);
-			return sqlca.sqlcode;//SQLU_RLOG_INVALID_PARM表示越界，SQLU_RLOG_EXTENT_REQUIRED表示该日志已经被删除
+			return sqlca.sqlcode;//SQLU_RLOG_INVALID_PARM表示越界，SQLU_RLOG_EXTENT_REQUIRED表示该日志已经被删除，SQLU_RLOG_READ_TO_CURRENT
 		}
 
-		int64_t result = 0;
 		sqluint32 numLogRecords = tool::reverse_value(readLogInfo.logRecsWritten);
-		if (!logBuffer)
-		{
-			if (numLogRecords == 0)
-				return result = 0;
-			else
-				return result = -1;
-		}
 
 		char* recordBuffer = logBuffer;
 		sqluint32 recordSize;
 		sqluint16 recordType;
 		sqluint16 recordFlag;
 
-		LOG_DEBUG("read_lri_sequentially numLogRecords: {}", numLogRecords);
+		LOG_DEBUG("read lri sequentially numLogRecords: {}", numLogRecords);
 		for (sqluint32 logRecordNb = 0; logRecordNb < numLogRecords; logRecordNb++)
 		{
 			db2ReadLogFilterData* filterData = (db2ReadLogFilterData*)recordBuffer;
@@ -884,15 +872,7 @@ private:
 			recordType = tool::reverse_value(*(sqluint16*)(recordBuffer + sizeof(sqluint32)));
 			recordFlag = tool::reverse_value(*(sqluint16*)(recordBuffer + sizeof(sqluint32) + sizeof(sqluint16)));
 
-			if (tool::reverse_value(filterData->recordLRIType1.part2) == tool::reverse_value(startLRI.part2)) {
-				startLRI = filterData->recordLRIType1;
-				return 0;
-			}
-			if (tool::reverse_value(filterData->recordLRIType1.part2) > tool::reverse_value(startLRI.part2))
-				return 1;
-
-
-			result = get_commit_time(recordBuffer, recordType, recordFlag);
+			int64_t result = get_commit_time(recordBuffer, recordType, recordFlag);
 			if (result > 0) {
 				LOG_DEBUG("get_commit_time:{}", result);
 				if (lri_and_time_vec.size() == 0 || (lri_and_time_vec.size() > 0 && lri_and_time_vec.back().time + 60 < result)) {
@@ -908,12 +888,13 @@ private:
 		return 0;
 	}
 
-	void async_read_lri_sequentially1() {
+	// 从initialLRI顺序读
+	void async_read_lri_sequentially(tapdata::LriRecorder& lri_recorder) {
 		rc_ = init_read_log_struct();
 		if (rc_ < 0) return ;
 
 		sqlca sqlca{};
-		int step = 1000000;
+		int step = 10000;
 		db2LRI beginLri;
 		db2LRI endLRI = read_log_info_.initialLRI;
 		while(1) {
@@ -923,67 +904,180 @@ private:
 			log_lri("beginLri", beginLri);
 			log_lri("endLRI", endLRI);
 			std::vector<lri_and_time> lri_and_time_vec;
+retry:
 			int ret = read_lri_sequentially(db2_version_, read_log_input_, read_log_info_, sqlca, endLRI, beginLri, log_buffer_.data(), lri_and_time_vec);
-			if (sqlca.sqlcode == SQLU_RLOG_INVALID_PARM) {
-				LOG_DEBUG("invalid parameter");
-				break;
+			if (ret < 0 || ret == SQLU_RLOG_READ_TO_CURRENT) {
+				LOG_DEBUG("no record, wait 10s");
+				sleep(10);
+				goto retry;
 			}
-			if (ret == 0) {
-				msleep(100);
-			} else {
-				msleep(1000);
+			if (lri_and_time_vec.size() == 0) {
+				LOG_DEBUG("no record found");
+				sleep(1);
+				continue;
 			}
-			if (lri_and_time_vec.size() > 0) {
-				beginLri = lri_and_time_vec.back().lri;
-			} else {
-				LOG_DEBUG("no record, break");
-				break;
+			// todo: record lri and time
+			for (auto &&lri_and_time : lri_and_time_vec) {
+				lri_recorder.Insert(lri_to_string(lri_and_time.lri), lri_and_time.time);
 			}
+			beginLri = lri_and_time_vec.back().lri;
 		}
 	}
 
-	void async_read_lri_sequentially() {
-		rc_ = init_read_log_struct();
-		if (rc_ < 0) return ;
+	// forwardDirection=true，从startLri向前读；forwardDirection=false，从startLri向后读
+	void async_read_lri_forward(tapdata::LriRecorder& lri_recorder, db2LRI& startLri) {
+		// rc_ = init_read_log_struct();
+		// if (rc_ < 0) return ;
 
 		sqlca sqlca{};
-		db2LRI beginLri = read_log_info_.initialLRI;
-		db2LRI endLRI = read_log_info_.initialLRI;;
-		{
-			endLRI.part1 = (decltype(endLRI.part1))0xFFFFFFFFFFFF;
-			endLRI.part2 = (decltype(endLRI.part2))-1;
-			tool::reverse_bytes(&endLRI.part1);
-			tool::reverse_bytes(&endLRI.part2);
-		}
+		int step = 10000;
+		db2LRI beginLRI;
+		db2LRI endLRI = startLri;
 		while(1) {
-			log_lri("beginLri", beginLri);
+			beginLRI = endLRI;
+			endLRI.part1 = tool::reverse_value((tool::reverse_value(endLRI.part1) + step) % 0xFFFFFFFFFFFF);
+			endLRI.part2 = tool::reverse_value((tool::reverse_value(endLRI.part2) + 2*step) % 0xFFFFFFFFFFFFFFFF);
+			log_lri("beginLRI", beginLRI);
+			log_lri("endLRI", endLRI);
 			std::vector<lri_and_time> lri_and_time_vec;
-			int ret = read_lri_sequentially(db2_version_, read_log_input_, read_log_info_, sqlca, endLRI, beginLri, log_buffer_.data(), lri_and_time_vec);
-			if (sqlca.sqlcode == SQLU_RLOG_INVALID_PARM) {
-				LOG_DEBUG("invalid parameter");
-				break;
+retry:
+			int ret = async_read_lri_sequentially1(db2_version_, read_log_input_, read_log_info_, sqlca, endLRI, beginLRI, log_buffer_.data(), lri_and_time_vec);
+			if (ret < 0 || ret == SQLU_RLOG_READ_TO_CURRENT) {
+				LOG_DEBUG("no record, wait 10s");
+				sleep(10);
+				goto retry;
 			}
-			if (ret == 0) {
-				msleep(100);
-			} else {
-				msleep(1000);
+			if (lri_and_time_vec.size() == 0) {
+				LOG_DEBUG("no record found");
+				sleep(1);
+				continue;
 			}
-			if (lri_and_time_vec.size() > 0) {
-				beginLri = lri_and_time_vec.back().lri;
-			} else {
-				LOG_DEBUG("no record, break");
-				break;
+			// todo: record lri and time
+			for (auto &&lri_and_time : lri_and_time_vec) {
+				lri_recorder.Insert(lri_to_string(lri_and_time.lri), lri_and_time.time);
 			}
+			beginLRI = lri_and_time_vec.back().lri;
 		}
 	}
 
-	int64_t init_info_and_lris(int64_t timeOffset, db2LRI& outStartLri, db2LRI& outEndLri)
-	{
+	void async_read_lri_backward(tapdata::LriRecorder& lri_recorder, db2LRI& startLri) {
+		// rc_ = init_read_log_struct();
+		// if (rc_ < 0) return ;
+
+		sqlca sqlca{};
+		int step = 10000;
+		db2LRI beginLRI = startLri;
+		db2LRI endLRI;
+		while(1) {
+			endLRI = beginLRI;
+			beginLRI.part1 = tool::reverse_value((tool::reverse_value(beginLRI.part1) - step) % 0xFFFFFFFFFFFF);
+			beginLRI.part2 = tool::reverse_value((tool::reverse_value(beginLRI.part2) - 2*step) % 0xFFFFFFFFFFFFFFFF);
+			log_lri("beginLRI", beginLRI);
+			log_lri("endLRI", endLRI);
+			std::vector<lri_and_time> lri_and_time_vec;
+retry:
+			int ret = async_read_lri_sequentially1(db2_version_, read_log_input_, read_log_info_, sqlca, endLRI, beginLRI, log_buffer_.data(), lri_and_time_vec);
+			if (ret < 0 || ret == SQLU_RLOG_READ_TO_CURRENT) {
+				LOG_DEBUG("no record, wait 10s");
+				sleep(10);
+				goto retry;
+			}
+			if (lri_and_time_vec.size() == 0) {
+				LOG_DEBUG("no record found");
+				sleep(1);
+				continue;
+			}
+			// todo: record lri and time
+			for (auto &&lri_and_time : lri_and_time_vec) {
+				lri_recorder.Insert(lri_to_string(lri_and_time.lri), lri_and_time.time);
+			}
+			endLRI = lri_and_time_vec.front().lri;
+		}
+	}
+
+	int64_t accelerate_by_part2(db2LRI& outStartLri, db2LRI& outEndLri) {
+		int64_t delta = (int64_t)tool::reverse_value(outStartLri.part2) - (int64_t)tool::reverse_value(read_log_info_.initialLRI.part2);
+		if (delta == 0) {
+			outStartLri = read_log_info_.initialLRI;
+			return 0;
+		}
+		LOG_DEBUG("lri part2 delta: {}", delta);
+		int step = 1000;
+		db2LRI tmpEndLRI = outStartLri;
+		// set part1 upper boundary: (part2 delta) / 2, because at least on DML before COMMIT statement
+		tmpEndLRI.part1 = tool::reverse_value((int64_t)tool::reverse_value(read_log_info_.initialLRI.part1) + delta/2);
+		// initialLRI is the search lower boundary
+		outStartLri = read_log_info_.initialLRI;
+		// delta is too large, narrow the search range to accelerate search
+		if (delta > step) {
+			outStartLri.part1 = tool::reverse_value(tool::reverse_value(tmpEndLRI.part1) - step);
+			outStartLri.part2 = tool::reverse_value(tool::reverse_value(tmpEndLRI.part2) - 2*step);
+		}
+
+		read_log_input_.iCallerAction = DB2READLOG_READ;
+		read_log_input_.poLogBuffer = log_buffer_.data();
+		read_log_input_.piStartLRI = &outStartLri;
+		read_log_input_.piEndLRI = &tmpEndLRI;
+		read_log_input_.poReadLogInfo = &read_log_info_;
+		read_log_input_.iLogBufferSize = log_buffer_.size();
+		read_log_input_.iFilterOption = DB2READLOG_FILTER_ON;
+		int ret = -1;
+		int round = 0;
+		while(1) {
+			round++;
+			LOG_DEBUG("round:{}", round);
+			log_lri("outStartLri", outStartLri);
+			log_lri("tmpEndLRI", tmpEndLRI);
+			db2LRI preStartLri = outStartLri;
+			ret = accelerate_find(db2_version_, read_log_input_, read_log_info_, sqlca, tmpEndLRI, outStartLri, log_buffer_.data());
+			if (ret == 0) {
+				log_lri("found lri, outStartLri", outStartLri);
+				return 0;
+			}
+			if (ret < 0) {
+				if (outStartLri.part1 == preStartLri.part1) {
+					LOG_DEBUG("outStartLri has no change, break");
+					break;
+				}
+				LOG_DEBUG("next search right side");
+				continue;
+			}
+			LOG_DEBUG("next search left side");
+			tmpEndLRI = outStartLri;
+			outStartLri.part1 = tool::reverse_value(tool::reverse_value(outStartLri.part1) - step);
+			outStartLri.part2 = tool::reverse_value(tool::reverse_value(outStartLri.part2) - 2*step);
+			if (tool::reverse_value(outStartLri.part1) < tool::reverse_value(read_log_info_.initialLRI.part1)) {
+				outStartLri.part1 = read_log_info_.initialLRI.part1;
+			}
+			if (tool::reverse_value(outStartLri.part1) >= tool::reverse_value(tmpEndLRI.part1)) {
+				LOG_DEBUG("found lri");
+				log_lri("outStartLri", outStartLri);
+				log_lri("tmpEndLRI", tmpEndLRI);
+				outStartLri = tmpEndLRI;
+				return 0;
+			}
+		}
+		LOG_DEBUG("not found lri");
 		log_lri("outStartLri", outStartLri);
-		tool::reverse_bytes(&outStartLri.lriType);
-		tool::reverse_bytes(&outStartLri.part1);
-		tool::reverse_bytes(&outStartLri.part2);
-		log_lri("reversed outStartLri", outStartLri);
+		log_lri("tmpEndLRI", tmpEndLRI);
+		return 0;
+	}
+
+	int64_t init_info_and_lris(ReadLogWrap& rlw)
+	{
+		int64_t timeOffset = rlw.time_off_set();
+		db2LRI& outStartLri = rlw.get_current_lri();
+		db2LRI& outEndLri = rlw.get_end_lri_();
+		std::string& lri_record_name = rlw.lri_record_name();
+
+		log_lri("outStartLri", outStartLri);
+		if (outStartLri.part1 == 0) {
+			outStartLri.lriType = 1;
+			tool::reverse_bytes(&outStartLri.lriType);
+			tool::reverse_bytes(&outStartLri.part1);
+			tool::reverse_bytes(&outStartLri.part2);
+			log_lri("reversed outStartLri", outStartLri);
+		}
 		rc_ = init_read_log_struct();
 		if (rc_ < 0) return rc_;
 
@@ -1004,71 +1098,21 @@ private:
 
 		sqlca sqlca{};
 		if (outStartLri.lriType && !outStartLri.part1 && outStartLri.part2) {
-			// async_read_lri_sequentially();
+			auto rc = accelerate_by_part2();
+			if (rc < 0) return rc;
 
-			// accelerate by part2
-			int64_t delta = (int64_t)tool::reverse_value(outStartLri.part2) - (int64_t)tool::reverse_value(read_log_info_.initialLRI.part2);
-			if (delta == 0) {
-				outStartLri = read_log_info_.initialLRI;
-				return 0;
+			if (rlw.cachelri()) {
+				tapdata::LriRecorder lri_recorder(lri_record_name);
+				int rc = lri_recorder.OpenDatabase();
+				if (rc != 0) {
+					return rc;
+				}
+				rc = lri_recorder.CreateTable();
+				if (rc != 0) {
+					return rc;
+				}
+				async_read_lri_sequentially(lri_recorder, outStartLri);
 			}
-			LOG_DEBUG("lri part2 delta: {}", delta);
-			int step = 1000;
-			db2LRI tmpEndLRI = outStartLri;
-			// set part1 upper boundary: (part2 delta) / 2, because at least on DML before COMMIT statement
-			tmpEndLRI.part1 = tool::reverse_value((int64_t)tool::reverse_value(read_log_info_.initialLRI.part1) + delta/2);
-			// initialLRI is the search lower boundary
-			outStartLri = read_log_info_.initialLRI;
-			// delta is too large, narrow the search range to accelerate search
-			if (delta > step) {
-				outStartLri.part1 = tool::reverse_value(tool::reverse_value(tmpEndLRI.part1) - step);
-			}
-
-			read_log_input_.iCallerAction = DB2READLOG_READ;
-			read_log_input_.poLogBuffer = log_buffer_.data();
-			read_log_input_.piStartLRI = &outStartLri;
-			read_log_input_.piEndLRI = &tmpEndLRI;
-			read_log_input_.poReadLogInfo = &read_log_info_;
-			read_log_input_.iLogBufferSize = log_buffer_.size();
-			read_log_input_.iFilterOption = DB2READLOG_FILTER_ON;
-			int ret = -1;
-			int round = 0;
-			while(1) {
-				round++;
-				LOG_DEBUG("round:{}", round);
-				log_lri("outStartLri", outStartLri);
-				log_lri("tmpEndLRI", tmpEndLRI);
-				db2LRI preStartLri = outStartLri;
-				ret = accelerate_find(db2_version_, read_log_input_, read_log_info_, sqlca, tmpEndLRI, outStartLri, log_buffer_.data());
-				if (ret == 0) {
-					log_lri("found lri, outStartLri", outStartLri);
-					return 0;
-				}
-				if (ret < 0) {
-					if (outStartLri.part1 == preStartLri.part1) {
-						LOG_DEBUG("outStartLri has no change, break");
-						break;
-					}
-					LOG_DEBUG("next search right side");
-					continue;
-				}
-				LOG_DEBUG("next search left side");
-				tmpEndLRI = outStartLri;
-				outStartLri.part1 = tool::reverse_value(tool::reverse_value(outStartLri.part1) - step);
-				if (tool::reverse_value(outStartLri.part1) < tool::reverse_value(read_log_info_.initialLRI.part1)) {
-					outStartLri.part1 = read_log_info_.initialLRI.part1;
-				}
-				if (tool::reverse_value(outStartLri.part1) >= tool::reverse_value(tmpEndLRI.part1)) {
-					LOG_DEBUG("found lri");
-					log_lri("outStartLri", outStartLri);
-					log_lri("tmpEndLRI", tmpEndLRI);
-					outStartLri = tmpEndLRI;
-					return 0;
-				}
-			}
-			LOG_DEBUG("not found lri");
-			log_lri("outStartLri", outStartLri);
-			log_lri("tmpEndLRI", tmpEndLRI);
 			return 0;
 		}
 
@@ -1273,7 +1317,7 @@ private:
 		sqluint16 recordType;
 		sqluint16 recordFlag;
 
-		LOG_DEBUG("get_closest_commit_time numLogRecords: {}", numLogRecords);
+		LOG_DEBUG("get closest commit time numLogRecords: {}", numLogRecords);
 		int64_t preTime = 0;
 		db2LRI preLRI = startLRI;
 		for (sqluint32 logRecordNb = 0; logRecordNb < numLogRecords; logRecordNb++)
@@ -1287,7 +1331,7 @@ private:
 
 			result = get_commit_time(recordBuffer, recordType, recordFlag);
 			if (result > 0) {
-				// LOG_DEBUG("get_closest_commit_time result: {}", result);
+				// LOG_DEBUG("get closest commit time result: {}", result);
 				if (timeOffset < result) {
 					if (preTime == 0) {
 						return result;
@@ -1305,7 +1349,7 @@ private:
 			recordBuffer += recordSize;
 		}
 
-		LOG_DEBUG("get_closest_commit_time: {}", preTime);
+		LOG_DEBUG("get closest commit time: {}", preTime);
 		startLRI = preLRI;
 		return preTime;
 	}
@@ -1428,8 +1472,12 @@ private:
 		multi_process_mutex_unlock();
 		log_read_log_info(readLogInfo);
 
+		if (sqlca.sqlcode != 0) {
+			LOG_DEBUG("sqlca.sqlcode:{}", sqlca.sqlcode);
+		}
+
 		// -2650在这里一般是指定的起始lri太大
-		if (sqlca.sqlcode == SQLU_RLOG_INVALID_PARM) {
+		if (sqlca.sqlcode == SQLU_RLOG_INVALID_PARM) { // || sqlca.sqlcode == SQLU_DBSYSTEM_ERROR
 			LOG_DEBUG("input parameter is too big");
 			return 1;
 		}

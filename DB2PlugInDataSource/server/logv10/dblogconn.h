@@ -142,8 +142,14 @@ struct ReorgTableLogRecord
 
 struct ReadLogWrap
 {
-	ReadLogWrap(int64_t time_off_set):time_off_set_(time_off_set)
+	ReadLogWrap(tapdata::ReadLogRequest readLogRequest) : time_off_set_(readLogRequest.stime()), cache_lri_(readLogRequest.cachelri())
 	{
+		lri_record_name_{};
+		if (readLogRequest.cachelri()) {
+			lri_record_name_ = readLogRequest.source().databasehostname()
+			+ "_" + readLogRequest.source().databaseservicename()
+			+ "_" + readLogRequest.source().databasename();
+		}
 	}
 
 	using push_dml_message_func = std::function<int32_t(tapdata::ReadLogPayload&&, bool reorgPending)>;
@@ -239,8 +245,20 @@ struct ReadLogWrap
 		return time_off_set_;
 	}
 
+	std::string lri_record_name() const
+	{
+		return lri_record_name_;
+	}
+
+	bool cache_lri() const
+	{
+		return cache_lri_;
+	}
+
 private:
 	const int64_t time_off_set_;
+	const std::string lri_record_name_;
+	bool cache_lri_;
 	message_callback_funcs message_callback_funcs_;
 
 	db2LRI current_lri_{};

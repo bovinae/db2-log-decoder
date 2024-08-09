@@ -34,7 +34,7 @@ namespace tapdata
 
         int exec(bool is_s = false)
         {
-	    init_multi_process_mutex(is_s);
+            init_multi_process_mutex(is_s);
             unique_lock<decltype(mutex_)> lock{ mutex_ };
             if (keep_running_)
             {

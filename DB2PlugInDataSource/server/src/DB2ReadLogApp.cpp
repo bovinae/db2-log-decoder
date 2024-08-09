@@ -59,7 +59,7 @@ namespace tapdata
 		strncpy(connectDbSet.pswd, readLogRequest_.source().databasepassword().data(), sizeof(connectDbSet.pswd) - 1);
 
 
-		ReadLogWrap readLogWrap(readLogRequest_.stime());
+		ReadLogWrap readLogWrap(readLogRequest_);
 
 		{
 			PushReadLogClient client(readLogRequest_, channel);

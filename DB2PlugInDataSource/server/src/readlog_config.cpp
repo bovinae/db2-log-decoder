@@ -12,7 +12,7 @@ namespace tapdata
 			if (readlog_time_out_s_ < chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now().time_since_epoch()).count())
 				return -1;
 			const auto size = resps_.size();
-			if (size < 0x1000)
+			if (size < 0x400)
 			{
 				resps_.put(move(resp));
 				return 0;
