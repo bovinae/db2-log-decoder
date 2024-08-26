@@ -37,13 +37,17 @@ void destroy_multi_process_mutex() {
 }
 
 void multi_process_mutex_lock() {
-    LOG_DEBUG("multi_process_mutex_lock");
+    // LOG_DEBUG("multi_process_mutex_lock");
     pthread_mutex_lock(&mm->mutex);
-    LOG_DEBUG("multi_process_mutex_lock ok");
+    // LOG_DEBUG("multi_process_mutex_lock ok");
+}
+
+int multi_process_mutex_trylock() {
+    return pthread_mutex_trylock(&mm->mutex);
 }
 
 void multi_process_mutex_unlock() {
-    LOG_DEBUG("multi_process_mutex_unlock");
+    // LOG_DEBUG("multi_process_mutex_unlock");
     pthread_mutex_unlock(&mm->mutex);
-    LOG_DEBUG("multi_process_mutex_unlock ok");
+    // LOG_DEBUG("multi_process_mutex_unlock ok");
 }

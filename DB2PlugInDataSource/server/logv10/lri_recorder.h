@@ -34,6 +34,7 @@ namespace tapdata {
       int Query(std::string& lri, int& time);
       int Delete(int time);
       int DropTable();
+      int Close();
    };
 
 }

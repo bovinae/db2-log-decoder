@@ -1147,7 +1147,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		}
 		break;
 	default:
-		LOG_WARN("      unknown function identifier:{}", (int)functionIdentifier);
+		LOG_DEBUG("      unknown function identifier:{}", (int)functionIdentifier);
 		break;
 	}
 

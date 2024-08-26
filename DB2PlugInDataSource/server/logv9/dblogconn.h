@@ -90,7 +90,7 @@ struct LocalDOMLogRecordHeader
 
 struct ReadLogWrap
 {
-    ReadLogWrap(int64_t time_off_set) :time_off_set_(time_off_set)
+    ReadLogWrap(tapdata::ReadLogRequest readLogRequest) : time_off_set_(readLogRequest.stime())
     {
     }
 

@@ -4,7 +4,7 @@
 #include "lri_recorder.h"
 #include "log_imp.h"
 
-tapdata::LriRecorder::LriRecorder(const std::string& lri_recorder_name) : db_name_(lri_recorder_name + ".db_"), table_name_(lri_recorder_name)
+tapdata::LriRecorder::LriRecorder(const std::string& lri_recorder_name) : db_name_(lri_recorder_name + ".db"), table_name_("lri")
 {
 }
 
@@ -16,7 +16,7 @@ tapdata::LriRecorder::~LriRecorder()
 int tapdata::LriRecorder::OpenDatabase()
 {
    /* Open database */
-   int rc = sqlite3_open(db_name_, &db_); // "lri.db_"
+   int rc = sqlite3_open(db_name_.c_str(), &db_); // "lri.db_"
    if( rc ){
       LOG_ERROR("Can't open database, rc:{}, msg:{}", rc, sqlite3_errmsg(db_));
       return rc;
@@ -32,8 +32,8 @@ int tapdata::LriRecorder::CreateTable()
    std::string sql = "CREATE TABLE if not exists " + table_name_ + "("  \
          "id INTEGER PRIMARY KEY AUTOINCREMENT    NOT NULL," \
          "lri            TEXT    NOT NULL," \
-         "time           INT     NOT NULL);" \
-         "CREATE INDEX index_time ON " + table_name_ + "(time)";
+         "time           INT unique NOT NULL);" \
+         "CREATE INDEX if not exists index_time ON " + table_name_ + "(time)";
  
    int rc = sqlite3_exec(db_, sql.c_str(), callback, 0, &zErrMsg);
    if( rc != SQLITE_OK ){
@@ -126,6 +126,17 @@ int tapdata::LriRecorder::DropTable()
       LOG_DEBUG("Table droped successfully");
    }
    return rc;
+}
+
+int tapdata::LriRecorder::Close()
+{
+   int rc = sqlite3_close(db_);
+   if(rc != SQLITE_OK) {
+      LOG_ERROR("Can't close database: {}", sqlite3_errmsg(db_));
+      return rc;
+   }
+   LOG_DEBUG("Database closed successfully");
+   return SQLITE_OK;
 }
 
 // int main(int argc, char* argv[])

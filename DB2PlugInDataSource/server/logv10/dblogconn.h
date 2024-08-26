@@ -140,12 +140,13 @@ struct ReorgTableLogRecord
 
 #pragma pack(pop)
 
+extern bool cache_switch;
 struct ReadLogWrap
 {
 	ReadLogWrap(tapdata::ReadLogRequest readLogRequest) : time_off_set_(readLogRequest.stime()), cache_lri_(readLogRequest.cachelri())
 	{
-		lri_record_name_{};
-		if (readLogRequest.cachelri()) {
+		lri_record_name_ = "";
+		if (readLogRequest.cachelri() || cache_switch) {
 			lri_record_name_ = readLogRequest.source().databasehostname()
 			+ "_" + readLogRequest.source().databaseservicename()
 			+ "_" + readLogRequest.source().databasename();
@@ -257,7 +258,7 @@ struct ReadLogWrap
 
 private:
 	const int64_t time_off_set_;
-	const std::string lri_record_name_;
+	std::string lri_record_name_;
 	bool cache_lri_;
 	message_callback_funcs message_callback_funcs_;
 
