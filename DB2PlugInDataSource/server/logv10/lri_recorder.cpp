@@ -4,7 +4,7 @@
 #include "lri_recorder.h"
 #include "log_imp.h"
 
-tapdata::LriRecorder::LriRecorder(const std::string& lri_recorder_name) : db_name_(lri_recorder_name + ".db"), table_name_("lri")
+tapdata::LriRecorder::LriRecorder(const std::string& lri_recorder_name) : db_name_("/sqlite3/" + lri_recorder_name + ".db"), table_name_("lri")
 {
 }
 
@@ -55,7 +55,9 @@ int tapdata::LriRecorder::Insert(std::string lri, int time)
    /* Execute SQL statement */
    int rc = sqlite3_exec(db_, sql.c_str(), callback, 0, &zErrMsg);
    if( rc != SQLITE_OK ){
-      LOG_ERROR("SQL error: {}", zErrMsg);
+      if (rc != 19) {
+         LOG_ERROR("SQL error: {}, rc:{}", zErrMsg, rc);
+      }
       sqlite3_free(zErrMsg);
    }else{
       LOG_DEBUG("Records created successfully");

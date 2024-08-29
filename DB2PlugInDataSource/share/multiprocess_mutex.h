@@ -4,28 +4,35 @@
 
 #pragma once
 
-#include<unistd.h>
-#include<sys/mman.h>
-#include<pthread.h>
-#include<sys/types.h>
-#include<sys/wait.h>
-#include<fcntl.h>
-#include<string.h>
-#include<stdlib.h>
-#include<stdio.h>
+#include <pthread.h>
+#include <string>
 
-struct multi_process_mutex
-{
+typedef struct multi_process_mutex {
     pthread_mutex_t mutex;
     pthread_mutexattr_t mutexattr;
+}multi_process_mutex;
+
+class mutex_wrapper
+{
+public:
+    mutex_wrapper() {
+        file_name_ = "";
+    }
+    mutex_wrapper(std::string file_name) : file_name_(file_name) {}
+
+    int init_multi_process_mutex(bool is_new = false);
+    void destroy_multi_process_mutex();
+    void multi_process_mutex_lock();
+    int multi_process_mutex_trylock();
+    void multi_process_mutex_unlock();
+
+private:
+    multi_process_mutex *mm;
+    std::string file_name_;
+
+    int get_fd(const char* file_name, bool& is_new);
+    int named_mmap(const char* file_name, bool& is_new);
+    int anon_mmap();
 };
 
-void init_multi_process_mutex(bool init_mutex = false);
-
-void destroy_multi_process_mutex();
-
-void multi_process_mutex_lock();
-
-int multi_process_mutex_trylock();
-
-void multi_process_mutex_unlock();
+int clear_files_in_directory(const char* dir);

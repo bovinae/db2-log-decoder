@@ -80,7 +80,7 @@ namespace tapdata
 					std::bind(&PushReadLogClient::flash_push, &client, placeholders::_1)
 				}
 			);
-			auto result = readLogWrap.db2_read_log(connectDbSet, readLogRequest_.scn(), 1000);
+			auto result = readLogWrap.db2_read_log(connectDbSet, readLogRequest_.scn(), 100);
 			LOG_INFO("db2 log back result:{}", result);
 		} // WrapPushReadLogRequest里面的析构函数会等待异步任务退出
 		// quit(result);

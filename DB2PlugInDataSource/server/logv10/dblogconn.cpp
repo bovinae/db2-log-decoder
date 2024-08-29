@@ -7,7 +7,6 @@
 #include "log_imp.h"
 #include <condition_variable>
 #include <signal.h>
-#include "multiprocess_mutex.h"
 #include "lri_recorder.h"
 
 bool cache_switch = false;
@@ -134,7 +133,8 @@ int ReadLogWrap::sendDMLMessage(int functionId, tapdata::ReadLogOp op, sqluint32
 
 	pending_scn_wrap_.add(scn_, payload.transactionid());
 	payload.set_pendingminscn(pending_scn_wrap_.get_min_scn());
-	return message_callback_funcs_.push_dml_message_func_(move(payload), any_of(begin(ReorgPendingFunctionIDS), end(ReorgPendingFunctionIDS), [functionId](auto i) {return functionId == i; }));
+	int rc = message_callback_funcs_.push_dml_message_func_(move(payload), any_of(begin(ReorgPendingFunctionIDS), end(ReorgPendingFunctionIDS), [functionId](auto i) {return functionId == i; }));
+	return rc;
 }
 
 int ReadLogWrap::sendNormalCommitMessage(sqluint32 transactionTime) const
@@ -316,12 +316,13 @@ static db2LRI parse_string(const string& start_scn, bool& error)
 class DB2ContentWraper : public UtilRecov, public UtilLog
 {
 public:
-	DB2ContentWraper(const ConnectDbSet& connect_set, size_t buffer_size = 64 * 1024 * 1024, db2Uint32 db2_version = db2Version1010) :
+	DB2ContentWraper(const ConnectDbSet& connect_set, size_t buffer_size = 3 * 1024 * 1024, db2Uint32 db2_version = db2Version1010) :
 		db2_version_{ db2_version }
 	{
 		instance_.setInstance((char*)connect_set.nodeName, (char*)connect_set.user, (char*)connect_set.pswd);
 		db_emb_.setDb((char*)connect_set.alias, (char*)connect_set.user, (char*)connect_set.pswd);
 		log_buffer_.resize(buffer_size);
+		readlog_mutex_.init_multi_process_mutex(false);
 	}
 
 	int64_t read_log_loop(const db2LRI& startLri, int64_t sleep_interval, ReadLogWrap& rlw)
@@ -357,6 +358,8 @@ public:
 	}
 
 private:
+	mutex_wrapper readlog_mutex_;
+
 	int try_connect(uint32_t try_times = 3, uint32_t try_time_interval_s = 30)
 	{
 		for (uint32_t t = 0; t < try_times; ++t)
@@ -404,7 +407,6 @@ private:
 		rc_ = init_info_and_lris(rlw);
 		LOG_DEBUG("init info and lris rc_:{}", rc_);
 		LOG_INFO("out start lri:{}.{}.{}", tool::reverse_value(rlw.get_current_lri().lriType), tool::reverse_value(rlw.get_current_lri().part1), tool::reverse_value(rlw.get_current_lri().part2));
-
 		if (rc_ < 0)
 			return rc_;
 
@@ -416,11 +418,22 @@ private:
 		read_log_input_.iFilterOption = DB2READLOG_FILTER_ON;
 		read_log_input_.poReadLogInfo = &read_log_info_;
 
-		// LOG_DEBUG("db2ReadLog begin");
-		multi_process_mutex_lock();
+		int step = 10;
+		int retry_cnt = 1000;
+retry:
+		// readlog_mutex_.multi_process_mutex_lock();
 		rc_ = db2ReadLog(db2_version_, &read_log_input_, &sqlca);
-		multi_process_mutex_unlock();
+		// readlog_mutex_.multi_process_mutex_unlock();
 		log_read_log_info(read_log_info_);
+		if (sqlca.sqlcode == SQLU_RLOG_INVALID_PARM && retry_cnt > 0) {
+			read_log_input_.piStartLRI->part1 = tool::reverse_value(tool::reverse_value(read_log_input_.piStartLRI->part1) - step);
+			read_log_input_.piStartLRI->part2 = tool::reverse_value(tool::reverse_value(read_log_input_.piStartLRI->part2) - 2*step);
+			LOG_DEBUG("remaining retry cnt:{}", retry_cnt);
+			auto tmp = *read_log_input_.piStartLRI;
+			log_lri("found start lri, but recall db2ReadLog sqlcode is -2650, retry", tmp);
+			retry_cnt--;
+			goto retry;
+		}
 		if (sqlca.sqlcode != SQLU_RLOG_READ_TO_CURRENT)
 		{
 			DB2_API_CHECK("database logs -- read");
@@ -447,9 +460,9 @@ private:
 			// read the next log sequence asynchronously.
 
 			// LOG_DEBUG("db2ReadLog begin");
-			multi_process_mutex_lock();
+			// readlog_mutex_.multi_process_mutex_lock();
 			rc_ = db2ReadLog(db2_version_, &read_log_input_, &sqlca);
-			multi_process_mutex_unlock();
+			// readlog_mutex_.multi_process_mutex_unlock();
 			log_read_log_info(read_log_info_);
 			if (sqlca.sqlcode != SQLU_RLOG_READ_TO_CURRENT)
 			{
@@ -460,7 +473,7 @@ private:
 			rc_ = LogBufferDisplay(log_buffer_.data(), tool::reverse_value(read_log_info_.logRecsWritten), 1, rlw);
 			CHECKRC(rc_, "LogBufferDisplay");
 			if (!read_log_info_.logRecsWritten) {
-				sleep(2);
+				// sleep(2);
 				rlw.sendHeartbeatMessage();
 				msleep(sleep_interval);
 			}
@@ -874,9 +887,9 @@ private:
 		readLogInput.iLogBufferSize = logBuffer.size();
 		readLogInput.iFilterOption = DB2READLOG_FILTER_ON;
 
-		multi_process_mutex_lock();
+		// readlog_mutex_.multi_process_mutex_lock();
 		db2ReadLog(versionNumber, &readLogInput, &sqlca);
-		multi_process_mutex_unlock();
+		// readlog_mutex_.multi_process_mutex_unlock();
 		log_read_log_info(readLogInfo);
 
 		if (sqlca.sqlcode != 0 && sqlca.sqlcode != SQLU_RLOG_READ_TO_CURRENT) {
@@ -926,16 +939,16 @@ private:
 		sqlca sqlca{};
 		int step = 20000;
 		db2LRI beginLri = {0};
-		db2LRI endLRI = currLri;
+		db2LRI endLri = currLri;
 		while(1) {
-			beginLri = endLRI;
-			endLRI.part1 = tool::reverse_value((tool::reverse_value(endLRI.part1) + step) % 0xFFFFFFFFFFFF);
-			endLRI.part2 = tool::reverse_value((tool::reverse_value(endLRI.part2) + 2*step) % 0xFFFFFFFFFFFFFFFF);
+			beginLri = endLri;
+			endLri.part1 = tool::reverse_value((tool::reverse_value(endLri.part1) + step) % 0xFFFFFFFFFFFF);
+			endLri.part2 = tool::reverse_value((tool::reverse_value(endLri.part2) + 2*step) % 0xFFFFFFFFFFFFFFFF);
 			log_lri("async read lri forward, beginLri", beginLri);
-			log_lri("async read lri forward, endLRI", endLRI);
-			std::vector<lri_and_time> lri_and_time_vec;
+			log_lri("async read lri forward, endLri", endLri);
 retry:
-			int ret = read_lri_sequentially(db2_version_, read_log_input_, read_log_info_, sqlca, endLRI, beginLri, log_buffer_, lri_and_time_vec);
+			std::vector<lri_and_time> lri_and_time_vec;
+			int ret = read_lri_sequentially(db2_version_, read_log_input_, read_log_info_, sqlca, endLri, beginLri, log_buffer_, lri_and_time_vec);
 			if (ret < 0) {
 				LOG_DEBUG("async read lri forward, no record");
 				sleep(60);
@@ -954,7 +967,7 @@ retry:
 				sleep(60);
 				goto retry;
 			}
-			// endLRI = lri_and_time_vec.back().lri;
+			// endLri = lri_and_time_vec.back().lri;
 		}
 	}
 
@@ -978,9 +991,9 @@ retry:
 
 		sqlca sqlca = { 0 };
 
-		multi_process_mutex_lock();
+		// readlog_mutex_.multi_process_mutex_lock();
 		int rc = db2ReadLog(db2_version_, &read_log_input, &sqlca);
-		multi_process_mutex_unlock();
+		// readlog_mutex_.multi_process_mutex_unlock();
 		log_read_log_info(read_log_info);
 		LOG_DEBUG("db2ReadLog rc:{}", rc);
 		EXPECTED_ERR_CHECK("database log info -- get");
@@ -1005,19 +1018,19 @@ retry:
 		sqlca sqlca{};
 		int step = 20000;
 		db2LRI beginLri;
-		db2LRI endLRI = read_log_info.initialLRI;
-		while(tool::reverse_value(endLRI.part1) < tool::reverse_value(currLri.part1)) {
-			beginLri = endLRI;
-			// if (tool::reverse_value(endLRI.part1) <= (long unsigned int)step) {
+		db2LRI endLri = read_log_info.initialLRI;
+		while(tool::reverse_value(endLri.part1) < tool::reverse_value(currLri.part1)) {
+			beginLri = endLri;
+			// if (tool::reverse_value(endLri.part1) <= (long unsigned int)step) {
 			// 	LOG_INFO("async read lri backward end");
 			// 	return ;
 			// }
-			endLRI.part1 = tool::reverse_value((tool::reverse_value(endLRI.part1) + step) % 0xFFFFFFFFFFFF);
-			endLRI.part2 = tool::reverse_value((tool::reverse_value(endLRI.part2) + 2*step) % 0xFFFFFFFFFFFFFFFF);
+			endLri.part1 = tool::reverse_value((tool::reverse_value(endLri.part1) + step) % 0xFFFFFFFFFFFF);
+			endLri.part2 = tool::reverse_value((tool::reverse_value(endLri.part2) + 2*step) % 0xFFFFFFFFFFFFFFFF);
 			log_lri("async read lri backward, beginLri", beginLri);
-			log_lri("async read lri backward, endLRI", endLRI);
+			log_lri("async read lri backward, endLri", endLri);
 			std::vector<lri_and_time> lri_and_time_vec;
-			int ret = read_lri_sequentially(db2_version_, read_log_input, read_log_info, sqlca, endLRI, beginLri, log_buffer, lri_and_time_vec);
+			int ret = read_lri_sequentially(db2_version_, read_log_input, read_log_info, sqlca, endLri, beginLri, log_buffer, lri_and_time_vec);
 			if (ret < 0) {
 				LOG_DEBUG("async read lri backward, no record");
 				// return ;
@@ -1037,7 +1050,7 @@ retry:
 				LOG_DEBUG("async read lri backward, read to current");
 				return ;
 			}
-			// endLRI = lri_and_time_vec.back().lri;
+			// endLri = lri_and_time_vec.back().lri;
 		}
 		LOG_DEBUG("async read lri backward finish");
 	}
@@ -1187,6 +1200,9 @@ retry:
 			LOG_DEBUG("next search left side");
 			tmpEndLRI.part1 = outStartLri.part1;
 			step = get_step(sqlca.sqlcode);
+			if ((unsigned long long)step > tool::reverse_value(outStartLri.part1)) {
+				step = tool::reverse_value(outStartLri.part1) > 10000 ? 10000 : tool::reverse_value(outStartLri.part1);
+			}
 			outStartLri.part1 = tool::reverse_value(tool::reverse_value(outStartLri.part1) - step);
 			// outStartLri.part2 = tool::reverse_value(tool::reverse_value(outStartLri.part2) - 2*step);
 			if (tool::reverse_value(outStartLri.part1) < tool::reverse_value(read_log_info_.initialLRI.part1)) {
@@ -1241,6 +1257,20 @@ retry:
 
 		sqlca sqlca{};
 		if (outStartLri.lriType && !outStartLri.part1 && outStartLri.part2) {
+			std::string recordlri_lock_name = "/lockfiles/" + lri_record_name;
+			mutex_wrapper recordlri_mutex(recordlri_lock_name);
+			if (rlw.cache_lri() || cache_switch) {
+				int rc = recordlri_mutex.init_multi_process_mutex();
+				if (rc < 0) return rc;
+				rc = recordlri_mutex.multi_process_mutex_trylock();
+				if (rc > 0) {
+					// 已经有其他进程在记录lri cache了	
+					LOG_DEBUG("other process is recording lri cache");				
+					return 0;
+				}
+				LOG_DEBUG("now got the lock");
+			}
+
 			auto rc = accelerate_by_part2(outStartLri);
 			if (rc < 0) return rc;
 
@@ -1276,6 +1306,8 @@ retry:
 				});
 				readlri_backward.detach();
 				async_read_lri_forward(lri_recorder, outStartLri);
+				recordlri_mutex.multi_process_mutex_unlock();
+				// recordlri_mutex.destroy_multi_process_mutex();
 			}
 			return 0;
 		}
@@ -1585,7 +1617,7 @@ retry:
 	}
 
 	static void db2readlog_sig_term_proc(int sig_no) {
-			multi_process_mutex_unlock();
+			// readlog_mutex_.multi_process_mutex_unlock();
 			pthread_exit(NULL);
 	}
 	//返回值：0表示时间无效，小于0中SQLU_RLOG_INVALID_PARM表示日志超出越界，SQLU_RLOG_EXTENT_REQUIRED表示该日志被清理，大于0表示lri时间
@@ -1602,9 +1634,9 @@ retry:
 
 		std::thread thread_readlog([&]{
 			signal(SIGTERM, db2readlog_sig_term_proc);
-			multi_process_mutex_lock();
+			// readlog_mutex_.multi_process_mutex_lock();
 			db2ReadLog(versionNumber, &readLogInput, &sqlca);
-			multi_process_mutex_unlock();
+			// readlog_mutex_.multi_process_mutex_unlock();
 			log_read_log_info(readLogInfo);
 			cond_wait.notify_one();
 		});
@@ -1627,9 +1659,9 @@ retry:
 		if (thread_readlog.joinable())
 			thread_readlog.join();
 
-		// multi_process_mutex_lock();
+		// readlog_mutex_.multi_process_mutex_lock();
 		// db2ReadLog(versionNumber, &readLogInput, &sqlca);
-		// multi_process_mutex_unlock();
+		// readlog_mutex_.multi_process_mutex_unlock();
 		// log_read_log_info(readLogInfo);
 
 		if (sqlca.sqlcode < 0) {
@@ -1646,7 +1678,7 @@ retry:
 			return sqlca.sqlcode;//SQLU_RLOG_INVALID_PARM表示越界，SQLU_RLOG_EXTENT_REQUIRED表示该日志已经被删除
 		}
 	}
-	static int64_t get_time_of_lri(db2Uint32 versionNumber, db2ReadLogStruct& readLogInput, db2ReadLogInfoStruct& readLogInfo, struct sqlca& sqlca,
+	int64_t get_time_of_lri(db2Uint32 versionNumber, db2ReadLogStruct& readLogInput, db2ReadLogInfoStruct& readLogInfo, struct sqlca& sqlca,
 		db2LRI& endLRI, db2LRI& startLRI, char* logBuffer, int64_t timeOffset)
 	{
 		readLogInput.poLogBuffer = logBuffer;
@@ -1654,9 +1686,9 @@ retry:
 		readLogInput.piEndLRI = &endLRI;
 		readLogInput.poReadLogInfo = &readLogInfo;
 
-		multi_process_mutex_lock();
+		// readlog_mutex_.multi_process_mutex_lock();
 		db2ReadLog(versionNumber, &readLogInput, &sqlca);
-		multi_process_mutex_unlock();
+		// readlog_mutex_.multi_process_mutex_unlock();
 		log_read_log_info(readLogInfo);
 
 		if (sqlca.sqlcode < 0) {
@@ -1676,9 +1708,9 @@ retry:
 
 	int64_t accelerate_find(db2Uint32 versionNumber, db2ReadLogStruct& readLogInput, db2ReadLogInfoStruct& readLogInfo, struct sqlca& sqlca, db2LRI& endLRI, db2LRI& startLRI, char* logBuffer)
 	{
-		multi_process_mutex_lock();
+		// readlog_mutex_.multi_process_mutex_lock();
 		db2ReadLog(versionNumber, &readLogInput, &sqlca);
-		multi_process_mutex_unlock();
+		// readlog_mutex_.multi_process_mutex_unlock();
 		log_read_log_info(readLogInfo);
 
 		if (sqlca.sqlcode != 0) {
@@ -1693,9 +1725,16 @@ retry:
 		// SQLU_RLOG_EXTENT_REQUIRED 表示该日志已经被删除
 		if (sqlca.sqlcode != 0 && sqlca.sqlcode != SQLU_RLOG_READ_TO_CURRENT) {
 			LOG_DEBUG("some error occured in accelerate_find, sqlca.sqlcode:{}", sqlca.sqlcode);
+			// 暂时处理成太大吧
+			return 1;
 		}
 		if (tool::reverse_value(readLogInfo.logRecsWritten) == 0) {
 			LOG_DEBUG("none log records, end early");
+			if (sqlca.sqlcode == SQLU_RLOG_READ_TO_CURRENT) {
+				// 由于后面可能会报-2650，所以这里把起始lri减一个很小的值。
+				startLRI.part1 = tool::reverse_value(tool::reverse_value(startLRI.part1) - 100);
+				startLRI.part2 = tool::reverse_value(tool::reverse_value(startLRI.part2) - 100);
+			}
 			return 0;
 		}
 
@@ -1742,9 +1781,9 @@ retry:
 
 		sqlca sqlca = { 0 };
 
-		multi_process_mutex_lock();
+		// readlog_mutex_.multi_process_mutex_lock();
 		rc_ = db2ReadLog(db2_version_, &read_log_input_, &sqlca);
-		multi_process_mutex_unlock();
+		// readlog_mutex_.multi_process_mutex_unlock();
 		log_read_log_info(read_log_info_);
 		LOG_DEBUG("db2ReadLog rc_:{}", rc_);
 		EXPECTED_ERR_CHECK("database log info -- get");

@@ -8,6 +8,7 @@
 #include "DB2PlugInDataSource.pb.h"
 #include "LocalDDLInfo.h"
 #include "pending_scn_wrap.h"
+#include "multiprocess_mutex.h"
 
 #ifndef USERID_SZ
 #define USERID_SZ 128

@@ -9,6 +9,7 @@
 #include "tool_extern.h"
 #include "tapdata_base64.h"
 #include "version.h"
+#include "multiprocess_mutex.h"
 
 using namespace std;
 
@@ -68,6 +69,7 @@ int main(int argc, char* argv[])
 	}
 	else if (argc == 1)
 	{
+		clear_files_in_directory("/lockfiles");
 		LOG_INIT("DB2ReadLogServer", tool::get_process_name() + "_slogs");
 		LOG_SET_LEVEL_AND_OUTPUT((spdlog::level::level_enum)1, false);
 		try

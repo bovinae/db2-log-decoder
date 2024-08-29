@@ -39,7 +39,7 @@ namespace tapdata
 					std::deque<ReadLogPayload> payloads;
 					while (1)
 					{
-						batch_payloads_.try_wait_and_pop(payloads, 1000, batch_size);
+						batch_payloads_.try_wait_and_pop(payloads, 100, batch_size);
 						if (!payloads.empty())
 						{
 							req_.mutable_logresponse()->mutable_payload()->Clear();
@@ -70,8 +70,10 @@ namespace tapdata
 			{
 				if (last_result < 0)
 					return -1;
-				while (batch_payloads_.size() > cache_batch_size && get_app<DB2ReadLogApp>()->keep_run())
+				while (batch_payloads_.size() > cache_batch_size && get_app<DB2ReadLogApp>()->keep_run()) {
+					LOG_DEBUG("batch queue is full");
 					std::this_thread::sleep_for(std::chrono::milliseconds(500));
+				}
 				if (get_app<DB2ReadLogApp>()->keep_run())
 				{
 					batch_payloads_.put(payloads.begin(), payloads.end());

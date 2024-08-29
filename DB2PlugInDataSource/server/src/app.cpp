@@ -34,7 +34,8 @@ namespace tapdata
 
         int exec(bool is_s = false)
         {
-            init_multi_process_mutex(is_s);
+            mutex_wrapper mw;
+            mw.init_multi_process_mutex(is_s);
             unique_lock<decltype(mutex_)> lock{ mutex_ };
             if (keep_running_)
             {
@@ -43,7 +44,7 @@ namespace tapdata
             }
             LOG_INFO("app quit!, reason:{}", quit_reason_);
             if (is_s) {
-                destroy_multi_process_mutex();
+                mw.destroy_multi_process_mutex();
             }
             return quit_reason_;
         }
