@@ -88,7 +88,7 @@ public:
 		}
 	}
 
-	void CreateReadlogTaskV10(const std::string& id, std::vector<int>&& table_ids, int64_t start_time, const std::string& scn, const std::string& host, const std::string& port, const std::string& db, const std::string& passwd) {
+	void CreateReadlogTaskV10(const std::string& id, std::vector<int>&& table_ids, int64_t start_time, const std::string& scn, const std::string& host, const std::string& port, const std::string& db, const std::string& passwd, bool bigendian, bool cache_lri) {
 		ControlResponse resp;
 
 		// Context for the client. It could be used to convey extra information to
@@ -127,7 +127,8 @@ public:
 		}
 
 
-		req.set_bigendian(false);
+		req.set_bigendian(bigendian);
+		req.set_cachelri(cache_lri);
 
 		req.set_stime(start_time);
 #endif
@@ -363,7 +364,7 @@ private:
 };
 
 
-void test(DemoClient& client, DB2Veresion ver, int64_t start_time, std::vector<int>&& table_ids, const std::string& scn, const std::string& host, const std::string& port, const std::string& db, const std::string& passwd)
+void test(DemoClient& client, DB2Veresion ver, int64_t start_time, std::vector<int>&& table_ids, const std::string& scn, const std::string& host, const std::string& port, const std::string& db, const std::string& passwd, bool bigendian, bool cache_lri)
 {
 	auto tid = std::this_thread::get_id();
 	std::stringstream sst;
@@ -406,9 +407,9 @@ void test(DemoClient& client, DB2Veresion ver, int64_t start_time, std::vector<i
 
 	if (ver == decltype(ver)::V10)
 	{
-		auto create_test_re = std::async([&sst, start_time, &table_ids, &client, scn, host, port, db, passwd]()
+		auto create_test_re = std::async([&sst, start_time, &table_ids, &client, scn, host, port, db, passwd, bigendian, cache_lri]()
 			{
-				client.CreateReadlogTaskV10(sst.str(), std::move(table_ids), start_time, scn, host, port, db, passwd);
+				client.CreateReadlogTaskV10(sst.str(), std::move(table_ids), start_time, scn, host, port, db, passwd, bigendian, cache_lri);
 			});
 
 		create_test_re.wait();
@@ -469,6 +470,8 @@ int main(int argc, char** argv)
 	std::string port = "50000";
 	std::string db = "TESTDB";
 	std::string passwd = "Gotapd8!"; // Eo36_MCf
+	bool bigendian = false;
+	bool cache_lri = false;
 	for (int i = 1; i < argc; i++)
 	{
 		if (strcmp(argv[i], "-st") == 0)
@@ -501,6 +504,20 @@ int main(int argc, char** argv)
 		{
 			passwd = argv[++i];
 		}
+		else if (strcmp(argv[i], "-bigendian") == 0)
+		{
+			char* tmp = argv[++i];
+			if (strcmp(tmp, "1") == 0 || strcmp(tmp, "true") == 0) {
+				bigendian = true;
+			}
+		}
+		else if (strcmp(argv[i], "-cl") == 0)
+		{
+			char* tmp = argv[++i];
+			if (strcmp(tmp, "1") == 0 || strcmp(tmp, "true") == 0) {
+				cache_lri = true;
+			}
+		}
 	}
 
 #if 0
@@ -520,7 +537,7 @@ int main(int argc, char** argv)
 
 
 
-	test(clientv10, DB2Veresion::V10, start_time, std::move(table_ids), scn, host, port, db, passwd);
+	test(clientv10, DB2Veresion::V10, start_time, std::move(table_ids), scn, host, port, db, passwd, bigendian, cache_lri);
 
 	return 0;
 }

@@ -65,13 +65,20 @@ int tapdata::LriRecorder::Insert(std::string lri, int time)
    return rc;
 }
 
-int tapdata::LriRecorder::Query(std::string& lri, int& time)
+int tapdata::LriRecorder::Query(std::string& lri, int& time, int direction)
 {
    char *zErrMsg = 0;
    /* select SQL statement */
-   std::string sql = "SELECT * from " + table_name_ + " where time <=" + std::to_string(time) + " order by time desc limit 1;";
+   std::string sql;
+   if (direction == 0) {
+      sql = "SELECT * from " + table_name_ + " where time <=" + std::to_string(time) + " order by time desc limit 1;";
+   } else {
+      sql = "SELECT * from " + table_name_ + " where time >=" + std::to_string(time) + " order by time asc limit 1;";
+   }
    // const char* data = "Callback function called";
 
+   time = 0;
+   lri = "";
    char **resultp = NULL;
    int row = 0;
    int col = 0;
@@ -153,11 +160,11 @@ int tapdata::LriRecorder::Close()
 //    rec.Insert(table_name, "1.4.7", 1722077145);
 //    std::string lri;
 //    int time = 1722077142;
-//    rec.Query(table_name, lri, time);
+//    rec.QueryLessEq(table_name, lri, time);
 //    printf("lri:%s, time:%d\n", lri.c_str(), time);
 //    rec.Delete(table_name, 1722077143);
 //    time = 1722077145;
-//    rec.Query(table_name, lri, time);
+//    rec.QueryLessEq(table_name, lri, time);
 //    printf("lri:%s, time:%d\n", lri.c_str(), time);
 //    rec.DropTable(table_name);
 //    return 0;

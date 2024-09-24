@@ -71,7 +71,7 @@ namespace tapdata
 				if (last_result < 0)
 					return -1;
 				while (batch_payloads_.size() > cache_batch_size && get_app<DB2ReadLogApp>()->keep_run()) {
-					LOG_DEBUG("batch queue is full");
+					// LOG_DEBUG("batch queue is full");
 					std::this_thread::sleep_for(std::chrono::milliseconds(500));
 				}
 				if (get_app<DB2ReadLogApp>()->keep_run())
