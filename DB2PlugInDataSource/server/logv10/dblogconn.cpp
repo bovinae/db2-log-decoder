@@ -1,3 +1,4 @@
+#include <sstream>
 #include <string>
 #include <memory>
 #include "sqladef.h"
@@ -874,9 +875,13 @@ retry:
 		if (res.size() < 3) {
 			return lri;
 		}
-		lri.lriType = atoi(res[0].c_str());
-		lri.part1 = atoll(res[1].c_str());
-		lri.part2 = atoll(res[2].c_str());
+
+		std::istringstream issLriType(res[0].c_str());
+		issLriType >> lri.lriType;
+		std::istringstream issLriPart1(res[1].c_str());
+		issLriPart1 >> lri.part1;
+		std::istringstream issLriPart2(res[2].c_str());
+		issLriPart2 >> lri.part2;
 		return lri;
 	}
 
@@ -920,7 +925,7 @@ retry:
 
 			int64_t result = get_commit_time(recordBuffer, recordType, recordFlag);
 			if (result > 0) {
-				LOG_DEBUG("get_commit_time:{}", result);
+				// LOG_DEBUG("get_commit_time:{}", result);
 				if (lri_and_time_vec.size() == 0 || (lri_and_time_vec.size() > 0 && lri_and_time_vec.back().time + 300 < result)) {
 					lri_and_time lat;
 					lat.lri = filterData->recordLRIType1;
@@ -1427,6 +1432,8 @@ retry:
 					lri_recorder.Close();
 					return 0;
 				} else {
+					leftLri = decode_lri(lri_record_lowerbound);
+					rightLri = decode_lri(lri_record_upperbound);
 					lri_time = get_time_of_lri(db2_version_, read_log_input_, read_log_info_, sqlca, rightLri, leftLri, log_buffer_.data(), timeOffset);
 					if (lri_time > 0) {
 						outStartLri = leftLri;
@@ -1678,7 +1685,7 @@ retry:
 
 			recordSize = tool::reverse_value(*(sqluint32*)(recordBuffer));
 
-			log_lri("walk through lri", filterData->recordLRIType1);
+			// log_lri("walk through lri", filterData->recordLRIType1);
 			if (tool::reverse_value(filterData->recordLRIType1.part2) == tool::reverse_value(endLRI.part2)) {
 				startLRI = filterData->recordLRIType1;
 				LOG_DEBUG("find_exactly_part1 equal");

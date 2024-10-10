@@ -103,3 +103,7 @@ db2set DB2OPTIONS=+c
 db2set DB2OPTIONS=
 查看事务自动提交设置
 db2 list command options | egrep 'Auto-Commit|DB2OPTIONS'
+
+测试lob类字段:
+db2 "create table testlob(id INTEGER not null constraint \"t_pk\" primary key, title VARCHAR(50), detail CLOB(10485760)) DATA CAPTURE CHANGES;"
+db2 "insert into testlob(id, title, detail) values (1, 'test title', 'test detail');"

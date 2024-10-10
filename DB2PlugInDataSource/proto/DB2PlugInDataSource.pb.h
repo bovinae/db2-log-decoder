@@ -1701,6 +1701,7 @@ class ReadLogRequest final :
     kTargetFieldNumber = 8,
     kStimeFieldNumber = 5,
     kBigEndianFieldNumber = 2,
+    kCacheLriFieldNumber = 9,
   };
   // repeated .tapdata.SourceTable tables = 6;
   int tables_size() const;
@@ -1820,6 +1821,15 @@ class ReadLogRequest final :
   void _internal_set_bigendian(bool value);
   public:
 
+  // bool cacheLri = 9;
+  void clear_cachelri();
+  bool cachelri() const;
+  void set_cachelri(bool value);
+  private:
+  bool _internal_cachelri() const;
+  void _internal_set_cachelri(bool value);
+  public:
+
   // @@protoc_insertion_point(class_scope:tapdata.ReadLogRequest)
  private:
   class _Internal;
@@ -1835,6 +1845,7 @@ class ReadLogRequest final :
   ::tapdata::WriterTarget* target_;
   ::PROTOBUF_NAMESPACE_ID::int64 stime_;
   bool bigendian_;
+  bool cachelri_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_DB2PlugInDataSource_2eproto;
 };
@@ -5136,6 +5147,26 @@ inline void ReadLogRequest::set_allocated_target(::tapdata::WriterTarget* target
   }
   target_ = target;
   // @@protoc_insertion_point(field_set_allocated:tapdata.ReadLogRequest.target)
+}
+
+// bool cacheLri = 9;
+inline void ReadLogRequest::clear_cachelri() {
+  cachelri_ = false;
+}
+inline bool ReadLogRequest::_internal_cachelri() const {
+  return cachelri_;
+}
+inline bool ReadLogRequest::cachelri() const {
+  // @@protoc_insertion_point(field_get:tapdata.ReadLogRequest.cacheLri)
+  return _internal_cachelri();
+}
+inline void ReadLogRequest::_internal_set_cachelri(bool value) {
+  
+  cachelri_ = value;
+}
+inline void ReadLogRequest::set_cachelri(bool value) {
+  _internal_set_cachelri(value);
+  // @@protoc_insertion_point(field_set:tapdata.ReadLogRequest.cacheLri)
 }
 
 // -------------------------------------------------------------------
