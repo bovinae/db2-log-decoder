@@ -914,6 +914,7 @@ retry:
 		sqluint16 recordFlag;
 
 		LOG_DEBUG("read lri sequentially numLogRecords: {}", numLogRecords);
+		lri_and_time lat{0};
 		for (sqluint32 logRecordNb = 0; logRecordNb < numLogRecords; logRecordNb++)
 		{
 			db2ReadLogFilterData* filterData = (db2ReadLogFilterData*)recordBuffer;
@@ -926,14 +927,16 @@ retry:
 			int64_t result = get_commit_time(recordBuffer, recordType, recordFlag);
 			if (result > 0) {
 				// LOG_DEBUG("get_commit_time:{}", result);
+				lat.lri = filterData->recordLRIType1;
+				lat.time = result;
 				if (lri_and_time_vec.size() == 0 || (lri_and_time_vec.size() > 0 && lri_and_time_vec.back().time + 300 < result)) {
-					lri_and_time lat;
-					lat.lri = filterData->recordLRIType1;
-					lat.time = result;
 					lri_and_time_vec.push_back(lat);
 				}
 			}
 			recordBuffer += recordSize;
+		}
+		if (lri_and_time_vec.size() > 0 && !is_lri_equal(lri_and_time_vec.back().lri, lat.lri) && lri_and_time_vec.back().time != lat.time) {
+			lri_and_time_vec.push_back(lat);
 		}
 
 		return 0;
@@ -953,11 +956,11 @@ retry:
 		int step = 20000;
 		db2LRI beginLri = {0};
 		db2LRI endLri = currLri;
-		lri_and_time last_lri_and_time;
-		last_lri_and_time.lri = currLri;
-		last_lri_and_time.time = time(NULL);
-		LOG_DEBUG("current time:{}", last_lri_and_time.time);
-		auto start = time(NULL);
+		// lri_and_time last_lri_and_time;
+		// last_lri_and_time.lri = currLri;
+		// last_lri_and_time.time = time(NULL);
+		// LOG_DEBUG("current time:{}", last_lri_and_time.time);
+		// auto start = time(NULL);
 		while(rlw.isRunning()) {
 			beginLri = endLri;
 			endLri.part1 = tool::reverse_value((tool::reverse_value(endLri.part1) + step) % 0xFFFFFFFFFFFF);
@@ -965,18 +968,32 @@ retry:
 			log_lri("async read lri forward, beginLri", beginLri);
 			log_lri("async read lri forward, endLri", endLri);
 retry:
-			auto duration_s = time(NULL) - start;
-			LOG_DEBUG("duration_s:{}", duration_s);
-			if (duration_s >= 300) {
-				last_lri_and_time.time = time(NULL);
-				lri_recorder.Insert(encode_lri(last_lri_and_time.lri), last_lri_and_time.time);
-				start = time(NULL);
-			}
+			// auto duration_s = time(NULL) - start;
+			// LOG_DEBUG("duration_s:{}", duration_s);
+			// if (duration_s >= 300) {
+			// 	last_lri_and_time.time = time(NULL);
+			// 	lri_recorder.Insert(encode_lri(last_lri_and_time.lri), last_lri_and_time.time);
+			// 	start = time(NULL);
+			// }
 			std::vector<lri_and_time> lri_and_time_vec;
 			int ret = read_lri_sequentially(db2_version_, read_log_input_, read_log_info_, sqlca, endLri, beginLri, log_buffer_, lri_and_time_vec);
 			if (ret < 0) {
-				LOG_DEBUG("async read lri forward, no record");
 				sleep(60);
+				if (ret == SQLU_RLOG_INVALID_PARM) {
+					LOG_DEBUG("async read lri forward, no record because of query beginning lri is too large, ret:{}", ret);
+					endLri = beginLri;
+					if (tool::reverse_value(endLri.part1) > (long unsigned int)step) {
+						endLri.part1 = tool::reverse_value(tool::reverse_value(endLri.part1) - step);
+					} else {
+						endLri.part1 = tool::reverse_value(0);
+					}
+					if (tool::reverse_value(endLri.part2) > (long unsigned int)2*step) {
+						endLri.part2 = tool::reverse_value(tool::reverse_value(endLri.part2) - 2*step);
+					} else {
+						endLri.part2 = tool::reverse_value(0);
+					}
+					continue;
+				}
 				if (rlw.isRunning())
 					goto retry;
 			}
@@ -989,18 +1006,18 @@ retry:
 				LOG_DEBUG("async read lri forward, lri:{}, time:{}", encode_lri(lri_and_time.lri), lri_and_time.time);
 				lri_recorder.Insert(encode_lri(lri_and_time.lri), lri_and_time.time);
 			}
-			if (!is_lri_equal(last_lri_and_time.lri, lri_and_time_vec[lri_and_time_vec.size()-1].lri)) {
-				last_lri_and_time = lri_and_time_vec[lri_and_time_vec.size()-1];
-			} else {
-				LOG_DEBUG("equal to last_lri_and_time");
+			if (lri_and_time_vec.size() > 0) {
+				endLri = lri_and_time_vec.back().lri;
 			}
+			// if (!is_lri_equal(last_lri_and_time.lri, lri_and_time_vec[lri_and_time_vec.size()-1].lri)) {
+			// 	last_lri_and_time = lri_and_time_vec[lri_and_time_vec.size()-1];
+			// } else {
+			// 	LOG_DEBUG("equal to last_lri_and_time");
+			// }
 			if (sqlca.sqlcode == SQLU_RLOG_READ_TO_CURRENT) {
 				LOG_DEBUG("async read lri forward, read to current");
 				sleep(60);
-				if (rlw.isRunning())
-					goto retry;
 			}
-			// endLri = lri_and_time_vec.back().lri;
 		}
 	}
 
@@ -1052,10 +1069,10 @@ retry:
 		int step = 10000;
 		db2LRI beginLri = currLri;
 		db2LRI endLri;
-		auto start = time(NULL);
-		lri_and_time last_lri_and_time;
-		last_lri_and_time.lri = {0};
-		last_lri_and_time.time = time(NULL);
+		// auto start = time(NULL);
+		// lri_and_time last_lri_and_time;
+		// last_lri_and_time.lri = {0};
+		// last_lri_and_time.time = time(NULL);
 		while(tool::reverse_value(beginLri.part1) > tool::reverse_value(read_log_info.initialLRI.part1)) {
 			endLri = beginLri;
 			// if (tool::reverse_value(endLri.part1) <= (long unsigned int)step) {
@@ -1071,14 +1088,14 @@ retry:
 			log_lri("async read lri backward, beginLri", beginLri);
 			log_lri("async read lri backward, endLri", endLri);
 			std::vector<lri_and_time> lri_and_time_vec;
-			auto duration_s = time(NULL) - start;
-			if (duration_s >= 300) {
-				last_lri_and_time.time = time(NULL);
-				if (last_lri_and_time.lri.lriType != 0) {
-					lri_recorder.Insert(encode_lri(last_lri_and_time.lri), last_lri_and_time.time);
-				}
-				start = time(NULL);
-			}
+			// auto duration_s = time(NULL) - start;
+			// if (duration_s >= 300) {
+			// 	last_lri_and_time.time = time(NULL);
+			// 	if (last_lri_and_time.lri.lriType != 0) {
+			// 		lri_recorder.Insert(encode_lri(last_lri_and_time.lri), last_lri_and_time.time);
+			// 	}
+			// 	start = time(NULL);
+			// }
 
 			int ret = read_lri_sequentially(db2_version_, read_log_input, read_log_info, sqlca, endLri, beginLri, log_buffer, lri_and_time_vec);
 			if (ret < 0) {
@@ -1097,9 +1114,9 @@ retry:
 				LOG_DEBUG("async read lri backward, lri:{}, time:{}", encode_lri(lri_and_time.lri), lri_and_time.time);
 				lri_recorder.Insert(encode_lri(lri_and_time.lri), lri_and_time.time);
 			}
-			if (!is_lri_equal(last_lri_and_time.lri, lri_and_time_vec[0].lri)) {
-				last_lri_and_time = lri_and_time_vec[0];
-			}
+			// if (!is_lri_equal(last_lri_and_time.lri, lri_and_time_vec[0].lri)) {
+			// 	last_lri_and_time = lri_and_time_vec[0];
+			// }
 			if (sqlca.sqlcode == SQLU_RLOG_READ_TO_CURRENT) {
 				LOG_DEBUG("async read lri backward, read to current");
 				return ;
@@ -1419,7 +1436,6 @@ retry:
 				lri_recorder.Close();
 				return 0;
 			}
-			// todo: find db2 logs between lri_record_lowerbound and lri_record_upperbound
 			if (lri_record_lowerbound.empty()) {
 				if (!lri_record_upperbound.empty()) {
 					outStartLri = decode_lri(lri_record_upperbound);

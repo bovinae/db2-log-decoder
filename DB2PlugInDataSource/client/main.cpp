@@ -8,6 +8,7 @@
 #include <sstream>
 #include <future>
 #include <signal.h>
+#include <sstream>
 
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/channel.h>
@@ -460,12 +461,20 @@ void sig_int_proc(int sig_no)
 	raise(SIGTERM);
 }
 
+template<typename T>
+void reverse_bytes(T* start)
+{
+	char* istart = (char*)start, * iend = istart + sizeof(T);
+	std::reverse(istart, iend);
+}
+
 int main(int argc, char** argv)
 {
 	signal(SIGINT, sig_int_proc);
 
 	int64_t start_time = 0;
 	std::string scn{};
+	std::string number{};
 	std::string host = "192.168.1.132";
 	std::string port = "50000";
 	std::string db = "TESTDB";
@@ -474,6 +483,16 @@ int main(int argc, char** argv)
 	bool cache_lri = false;
 	for (int i = 1; i < argc; i++)
 	{
+		if (strcmp(argv[i], "-reverse") == 0) {
+			number = argv[++i];
+			std::istringstream tmp(number.c_str());
+			unsigned long long num;
+	                tmp >> num;
+			reverse_bytes(&num);
+			std::cout << num << std::endl;
+			return 0;
+		}
+
 		if (strcmp(argv[i], "-st") == 0)
 		{
 			try {
