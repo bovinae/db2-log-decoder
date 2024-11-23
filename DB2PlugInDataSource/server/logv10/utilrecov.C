@@ -645,7 +645,7 @@ int UtilLog::LogRecordDisplay(char* recordBuffer,
 			break;
 
 		default:
-			LOG_WARN("    Unknown complex log record, recordType:{}, componentIdentifier:{}", recordType, (int)componentIdentifier);
+			//LOG_WARN("    Unknown complex log record, recordType:{}, componentIdentifier:{}", recordType, (int)componentIdentifier);
 			return 0;
 		}
 		recordDataBuffer = recordBuffer +
@@ -662,7 +662,7 @@ int UtilLog::LogRecordDisplay(char* recordBuffer,
 		CHECKRC(rc, "ComplexLogRecordDisplay");
 		break;
 	default:
-		LOG_WARN("    Unknown log record, recordType:{}", recordType);
+		//LOG_WARN("    Unknown log record, recordType:{}", recordType);
 		break;
 	}
 
@@ -943,27 +943,27 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		CHECKRC(rc, "LogSubRecordDisplay");
 		break;
 	case 0x70:
-		LOG_DEBUG("      function ID: Undo Update Record");
+		//LOG_DEBUG("      function ID: Undo Update Record");
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
-		LOG_DEBUG("        RID: {}", recid.getString());
+		//LOG_DEBUG("        RID: {}", recid.getString());
 		subRecordBuffer = recordDataBuffer + 3 * sizeof(sqluint16) + recid.size() + sizeof(sqluint16);
 		rc = LogSubRecordDisplay(subRecordBuffer, subRecordLen, pJavaWrap, isInternal);
 		CHECKRC(rc, "LogSubRecordDisplay");
 		operation = decltype(operation)::ROLLBACK;
 		break;
 	case 0x6E:
-		LOG_DEBUG("      function ID: Undo Insert Record");
+		//LOG_DEBUG("      function ID: Undo Insert Record");
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
-		LOG_DEBUG("        RID: {}", recid.getString());
+		//LOG_DEBUG("        RID: {}", recid.getString());
 		operation = decltype(operation)::ROLLBACK;
 		break;
 	case 0x6F:
-		LOG_DEBUG("      function ID: Undo Delete Record");
+		//LOG_DEBUG("      function ID: Undo Delete Record");
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
-		LOG_DEBUG("        RID: {}", recid.getString());
+		//LOG_DEBUG("        RID: {}", recid.getString());
 		subRecordBuffer = recordDataBuffer + 3 * sizeof(sqluint16) + recid.size() + sizeof(sqluint16);
 		rc = LogSubRecordDisplay(subRecordBuffer, subRecordLen, pJavaWrap, isInternal);
 		CHECKRC(rc, "LogSubRecordDisplay");
@@ -1147,7 +1147,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		}
 		break;
 	default:
-		LOG_DEBUG("      unknown function identifier:{}", (int)functionIdentifier);
+		//LOG_DEBUG("      unknown function identifier:{}", (int)functionIdentifier);
 		break;
 	}
 
@@ -1204,7 +1204,7 @@ int UtilLog::LogSubRecordDisplay(char* recordBuffer,
 		if (updatableRecordType != 1)
 		{
 			isInternal = true;
-			LOG_DEBUG("        subrecord type: Updatable, Internal control");
+			//LOG_DEBUG("        subrecord type: Updatable, Internal control");
 		}
 #ifdef SERVER_SUBLOG_DEBUG
 		else

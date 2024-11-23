@@ -1333,63 +1333,60 @@ retry:
 		LOG_DEBUG("outEndLri: {}.{}.{}", tool::reverse_value(outEndLri.lriType), tool::reverse_value(outEndLri.part1), tool::reverse_value(outEndLri.part2));
 		LOG_DEBUG("read_log_info_.initialLRI: {}.{}.{}", tool::reverse_value(read_log_info_.initialLRI.lriType), tool::reverse_value(read_log_info_.initialLRI.part1), tool::reverse_value(read_log_info_.initialLRI.part2));
 
-		if (outStartLri.lriType && outStartLri.part1 && outStartLri.part2)//既然有值,在此结束
+		if (!rlw.cache_lri() && outStartLri.lriType && outStartLri.part1 && outStartLri.part2)//既然有值,在此结束
 			return 0;
 
 		sqlca sqlca{};
 		if (outStartLri.lriType && !outStartLri.part1 && outStartLri.part2) {
-			std::string recordlri_lock_name = "/lockfiles/" + lri_record_name;
-			mutex_wrapper recordlri_mutex(recordlri_lock_name);
-			if (rlw.cache_lri() && cache_switch) {
-				int rc = recordlri_mutex.init_multi_process_mutex();
-				if (rc < 0) return rc;
-				rc = recordlri_mutex.multi_process_mutex_trylock();
-				if (rc > 0) {
-					// 已经有其他进程在记录lri cache了	
-					LOG_DEBUG("other process is recording lri cache");				
-					return -1;
-				}
-				LOG_DEBUG("now got the lock");
-			}
-
 			auto rc = accelerate_by_part2(outStartLri);
 			if (rc < 0) return rc;
-
-			if (rlw.cache_lri() && cache_switch) {
-				tapdata::LriRecorder lri_recorder(lri_record_name);
-				int rc = lri_recorder.OpenDatabase();
-				if (rc != 0) {
-					exit(rc);
-				}
-				rc = lri_recorder.CreateTable();
-				if (rc != 0) {
-					exit(rc);
-				}
-				// 先记录下来，防止被forward修改。
-				db2LRI tmp = outStartLri;
-				std::thread readlri_backward([=]{
-					db2LRI outStartLriBackward = tmp;
-					tapdata::LriRecorder lri_recorder_backward(lri_record_name);
-					int rc = lri_recorder_backward.OpenDatabase();
-					if (rc != 0) {
-						exit(rc);
-					}
-					rc = lri_recorder_backward.CreateTable();
-					if (rc != 0) {
-						exit(rc);
-					}
-					vector<char> log_buffer;
-					LOG_DEBUG("##############: {}", log_buffer_.size());
-					log_buffer.resize(log_buffer_.size());
-					db2ReadLogStruct read_log_input;
-					db2ReadLogInfoStruct read_log_info;
-					async_read_lri_backward(lri_recorder_backward, outStartLriBackward, read_log_input, read_log_info, log_buffer);
-				});
-				readlri_backward.detach();
-				async_read_lri_forward(lri_recorder, outStartLri, rlw);
-				recordlri_mutex.multi_process_mutex_unlock();
-				// recordlri_mutex.destroy_multi_process_mutex();
+		}
+		if (rlw.cache_lri() && cache_switch) {
+			std::string recordlri_lock_name = "/lockfiles/" + lri_record_name;
+			mutex_wrapper recordlri_mutex(recordlri_lock_name);
+			int rc = recordlri_mutex.init_multi_process_mutex();
+			if (rc < 0) return rc;
+			rc = recordlri_mutex.multi_process_mutex_trylock();
+			if (rc > 0) {
+				// 已经有其他进程在记录lri cache了	
+				LOG_DEBUG("other process is recording lri cache");				
+				return -1;
 			}
+			LOG_DEBUG("now got the lock");
+
+			tapdata::LriRecorder lri_recorder(lri_record_name);
+			rc = lri_recorder.OpenDatabase();
+			if (rc != 0) {
+				exit(rc);
+			}
+			rc = lri_recorder.CreateTable();
+			if (rc != 0) {
+				exit(rc);
+			}
+			// 先记录下来，防止被forward修改。
+			db2LRI tmp = outStartLri;
+			std::thread readlri_backward([=]{
+				db2LRI outStartLriBackward = tmp;
+				tapdata::LriRecorder lri_recorder_backward(lri_record_name);
+				int rc = lri_recorder_backward.OpenDatabase();
+				if (rc != 0) {
+					exit(rc);
+				}
+				rc = lri_recorder_backward.CreateTable();
+				if (rc != 0) {
+					exit(rc);
+				}
+				vector<char> log_buffer;
+				LOG_DEBUG("##############: {}", log_buffer_.size());
+				log_buffer.resize(log_buffer_.size());
+				db2ReadLogStruct read_log_input;
+				db2ReadLogInfoStruct read_log_info;
+				async_read_lri_backward(lri_recorder_backward, outStartLriBackward, read_log_input, read_log_info, log_buffer);
+			});
+			readlri_backward.detach();
+			async_read_lri_forward(lri_recorder, outStartLri, rlw);
+			recordlri_mutex.multi_process_mutex_unlock();
+			// recordlri_mutex.destroy_multi_process_mutex();
 			return 0;
 		}
 
