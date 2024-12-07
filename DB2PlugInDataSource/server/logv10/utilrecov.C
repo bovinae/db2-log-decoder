@@ -739,7 +739,7 @@ int UtilLog::SimpleLogRecordDisplay(sqluint16 recordType,
 	}
 
 	default:
-		LOG_WARN("    Unknown simple log, recordType:{}", recordType);
+		//LOG_WARN("    Unknown simple log, recordType:{}", recordType);
 
 		break;
 	}

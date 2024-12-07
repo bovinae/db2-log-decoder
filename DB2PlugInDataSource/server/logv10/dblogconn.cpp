@@ -885,7 +885,7 @@ retry:
 		return lri;
 	}
 
-	int64_t read_lri_sequentially(db2Uint32 versionNumber, db2ReadLogStruct& readLogInput, db2ReadLogInfoStruct& readLogInfo, struct sqlca& sqlca,
+	int64_t read_lri_sequentially(string logPrefix, db2Uint32 versionNumber, db2ReadLogStruct& readLogInput, db2ReadLogInfoStruct& readLogInfo, struct sqlca& sqlca,
 		db2LRI& endLRI, db2LRI& startLRI, vector<char>& logBuffer, std::vector<lri_and_time>& lri_and_time_vec)
 	{
 		readLogInput.iCallerAction = DB2READLOG_READ;
@@ -913,7 +913,7 @@ retry:
 		sqluint16 recordType;
 		sqluint16 recordFlag;
 
-		LOG_DEBUG("read lri sequentially numLogRecords: {}", numLogRecords);
+		LOG_DEBUG("{}, read lri sequentially numLogRecords: {}", logPrefix, numLogRecords);
 		lri_and_time lat{0};
 		for (sqluint32 logRecordNb = 0; logRecordNb < numLogRecords; logRecordNb++)
 		{
@@ -953,7 +953,7 @@ retry:
 		// if (rc_ < 0) return ;
 
 		sqlca sqlca{};
-		int step = 20000;
+		int step = 60000;
 		db2LRI beginLri = {0};
 		db2LRI endLri = currLri;
 		// lri_and_time last_lri_and_time;
@@ -961,12 +961,13 @@ retry:
 		// last_lri_and_time.time = time(NULL);
 		// LOG_DEBUG("current time:{}", last_lri_and_time.time);
 		// auto start = time(NULL);
+		LOG_DEBUG("async read lri forward, log buffer size: {}", log_buffer_.size());
 		while(rlw.isRunning()) {
 			beginLri = endLri;
 			endLri.part1 = tool::reverse_value((tool::reverse_value(endLri.part1) + step) % 0xFFFFFFFFFFFF);
 			endLri.part2 = tool::reverse_value((tool::reverse_value(endLri.part2) + 2*step) % 0xFFFFFFFFFFFFFFFF);
 			log_lri("async read lri forward, beginLri", beginLri);
-			log_lri("async read lri forward, endLri", endLri);
+			log_lri("async read lri forward, endLri  ", endLri);
 retry:
 			// auto duration_s = time(NULL) - start;
 			// LOG_DEBUG("duration_s:{}", duration_s);
@@ -976,7 +977,7 @@ retry:
 			// 	start = time(NULL);
 			// }
 			std::vector<lri_and_time> lri_and_time_vec;
-			int ret = read_lri_sequentially(db2_version_, read_log_input_, read_log_info_, sqlca, endLri, beginLri, log_buffer_, lri_and_time_vec);
+			int ret = read_lri_sequentially("async read lri forward", db2_version_, read_log_input_, read_log_info_, sqlca, endLri, beginLri, log_buffer_, lri_and_time_vec);
 			if (ret < 0) {
 				sleep(60);
 				if (ret == SQLU_RLOG_INVALID_PARM) {
@@ -1006,14 +1007,11 @@ retry:
 				LOG_DEBUG("async read lri forward, lri:{}, time:{}", encode_lri(lri_and_time.lri), lri_and_time.time);
 				lri_recorder.Insert(encode_lri(lri_and_time.lri), lri_and_time.time);
 			}
-			if (lri_and_time_vec.size() > 0) {
-				endLri = lri_and_time_vec.back().lri;
-			}
-			// if (!is_lri_equal(last_lri_and_time.lri, lri_and_time_vec[lri_and_time_vec.size()-1].lri)) {
-			// 	last_lri_and_time = lri_and_time_vec[lri_and_time_vec.size()-1];
-			// } else {
-			// 	LOG_DEBUG("equal to last_lri_and_time");
-			// }
+			// Read the next log sequence
+			memcpy(&endLri, &(read_log_info_.nextStartLRI), sizeof(endLri));
+			//endLri = lri_and_time_vec.back().lri;
+			//endLri.part1 = tool::reverse_value(tool::reverse_value(endLri.part1) + 1);
+			//endLri.part2 = tool::reverse_value(tool::reverse_value(endLri.part2) + 1);
 			if (sqlca.sqlcode == SQLU_RLOG_READ_TO_CURRENT) {
 				LOG_DEBUG("async read lri forward, read to current");
 				sleep(60);
@@ -1058,6 +1056,8 @@ retry:
 								db2ReadLogStruct& read_log_input, 
 								db2ReadLogInfoStruct& read_log_info,
 								vector<char>& log_buffer) {
+		LOG_DEBUG("not need async_read_lri_backward");
+		return ;
 		LOG_DEBUG("enter async read lri backward");
 		int rc = init_read_log_struct_backward(read_log_input, read_log_info);
 		if (rc < 0) {
@@ -1073,6 +1073,7 @@ retry:
 		// lri_and_time last_lri_and_time;
 		// last_lri_and_time.lri = {0};
 		// last_lri_and_time.time = time(NULL);
+		LOG_DEBUG("async read lri backward, log buffer size: {}", log_buffer.size());
 		while(tool::reverse_value(beginLri.part1) > tool::reverse_value(read_log_info.initialLRI.part1)) {
 			endLri = beginLri;
 			// if (tool::reverse_value(endLri.part1) <= (long unsigned int)step) {
@@ -1097,12 +1098,13 @@ retry:
 			// 	start = time(NULL);
 			// }
 
-			int ret = read_lri_sequentially(db2_version_, read_log_input, read_log_info, sqlca, endLri, beginLri, log_buffer, lri_and_time_vec);
+			int ret = read_lri_sequentially("async read lri backward", db2_version_, read_log_input, read_log_info, sqlca, endLri, beginLri, log_buffer, lri_and_time_vec);
 			if (ret < 0) {
 				LOG_DEBUG("async read lri backward, no record");
 				// return ;
 				// sleep(1);
-				continue;
+				//continue;
+				break;
 			}
 			if (lri_and_time_vec.size() == 0) {
 				LOG_DEBUG("async read lri backward, no lri and time");
@@ -1365,6 +1367,7 @@ retry:
 			}
 			// 先记录下来，防止被forward修改。
 			db2LRI tmp = outStartLri;
+			log_buffer_.resize(60 * 1024 * 1024);
 			std::thread readlri_backward([=]{
 				db2LRI outStartLriBackward = tmp;
 				tapdata::LriRecorder lri_recorder_backward(lri_record_name);

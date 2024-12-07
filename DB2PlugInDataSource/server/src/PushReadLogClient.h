@@ -207,6 +207,7 @@ namespace tapdata
 		//0为ok，小于0出错
 		int32_t push_undo_ddl(ReadLogPayload&& payload)
 		{
+			LOG_DEBUG("recv undo ddl log: transaction id:{}", payload.transactionid());
 			const auto it = std::find_if(readLogPayloadCaches_.begin(), readLogPayloadCaches_.end(),
 				[&payload](const ReadLogPayloadCache& i) { return i.transactionId == payload.transactionid(); });
 			if (it != readLogPayloadCaches_.end())//找到了就删除
@@ -221,6 +222,7 @@ namespace tapdata
 		//0为ok，小于0出错
 		int32_t push_undo_dml(ReadLogPayload&& payload)
 		{
+			LOG_DEBUG("recv undo dml log: transaction id:{}", payload.transactionid());
 			const auto it = std::find_if(readLogPayloadCaches_.begin(), readLogPayloadCaches_.end(),
 				[&payload](const ReadLogPayloadCache& i) { return i.transactionId == payload.transactionid(); });
 			if (it != readLogPayloadCaches_.end())//找到了就删除
@@ -235,6 +237,7 @@ namespace tapdata
 		//0为ok，小于0出错
 		int32_t push_reorg_table(ReadLogPayload&& payload)
 		{
+			LOG_DEBUG("recv reorg table log: transaction id:{}", payload.transactionid());
 			for (auto it = readLogPayloadCaches_.begin();; ++it)//扫描所有的payload，只要是tableid与reorg table消息相同，则取消暂存状态
 			{
 				it = std::find_if(it, readLogPayloadCaches_.end(),
