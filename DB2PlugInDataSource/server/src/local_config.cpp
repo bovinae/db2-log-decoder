@@ -28,6 +28,7 @@ namespace tapdata
             app_log_config_->console_ = true;
             app_log_config_->level_ = 1;
             app_log_config_->jump_size_ = 1000;
+            app_log_config_->log_db2_data_ = false;
         }
 
         bool init_value_from_json(int version, const nlohmann::json& j) noexcept
@@ -39,6 +40,7 @@ namespace tapdata
                     app_log_config_->console_ = j.at(json_console);
                     app_log_config_->level_ = j.at(json_level);
                     app_log_config_->jump_size_ = j.at(json_jump_size);
+                    app_log_config_->log_db2_data_ = j.at(json_log_db2_data);
                 }
                 catch (const json::exception& ex)
                 {
@@ -57,6 +59,7 @@ namespace tapdata
             j[json_console] = app_log_config_->console_;
             j[json_level] = app_log_config_->level_;
             j[json_jump_size] = app_log_config_->jump_size_;
+            j[json_log_db2_data] = app_log_config_->log_db2_data_;
             return j;
         }
 

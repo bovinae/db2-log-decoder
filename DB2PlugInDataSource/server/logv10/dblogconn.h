@@ -9,6 +9,7 @@
 #include "LocalDDLInfo.h"
 #include "pending_scn_wrap.h"
 #include "multiprocess_mutex.h"
+#include "local_config.h"
 
 #ifndef USERID_SZ
 #define USERID_SZ 128
@@ -144,7 +145,7 @@ struct ReorgTableLogRecord
 extern bool cache_switch;
 struct ReadLogWrap
 {
-	ReadLogWrap(tapdata::ReadLogRequest readLogRequest) : time_off_set_(readLogRequest.stime()), cache_lri_(readLogRequest.cachelri())
+	ReadLogWrap(tapdata::ReadLogRequest readLogRequest, const tapdata::local_config* local_config) : time_off_set_(readLogRequest.stime()), cache_lri_(readLogRequest.cachelri()), local_config_(local_config)
 	{
 		lri_record_name_ = "";
 		if (readLogRequest.cachelri() || cache_switch) {
@@ -152,6 +153,7 @@ struct ReadLogWrap
 			+ "_" + readLogRequest.source().databaseservicename()
 			+ "_" + readLogRequest.source().databasename();
 		}
+		LOG_DEBUG("log_db2_data:{}", local_config->get_app_log_config().log_db2_data_);
 	}
 
 	using push_dml_message_func = std::function<int32_t(tapdata::ReadLogPayload&&, bool reorgPending)>;
@@ -257,6 +259,11 @@ struct ReadLogWrap
 		return cache_lri_;
 	}
 
+	const tapdata::local_config* get_local_config() const
+	{
+		return local_config_;
+	}
+
 private:
 	const int64_t time_off_set_;
 	std::string lri_record_name_;
@@ -270,6 +277,8 @@ private:
 	LocalSqluTid sql_tid_;
 
 	mutable tapdata::PendingScnWrap pending_scn_wrap_;
+
+	const tapdata::local_config* local_config_;
 };
 
 #endif

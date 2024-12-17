@@ -10,6 +10,7 @@ namespace tapdata
         bool console_{ false };
         int level_{ 2 };
         int jump_size_{ 1000 };
+        bool log_db2_data_{ false };
     };
 
     struct server_config

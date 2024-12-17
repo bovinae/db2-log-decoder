@@ -134,6 +134,13 @@ int ReadLogWrap::sendDMLMessage(int functionId, tapdata::ReadLogOp op, sqluint32
 
 	pending_scn_wrap_.add(scn_, payload.transactionid());
 	payload.set_pendingminscn(pending_scn_wrap_.get_min_scn());
+	if (get_local_config()->get_app_log_config().log_db2_data_) {
+		string beforeBase64;
+		if (beforeLogRecordBuffer) beforeBase64 = tool::base64_encode(beforeLogRecordBuffer, beforeLogRecordSize);
+		string afterBase64;
+		if (logRecordBuffer) afterBase64 = tool::base64_encode(logRecordBuffer, logRecordSize);
+		LOG_DEBUG("operation:{}, tableid:{}, before:{}, after:{}, scn:{}, tid:{}, rid:{}, fid:{}", op, tool::reverse_value(header->tableIdentifier), beforeBase64, afterBase64, scn_, payload.transactionid(), rid, functionId);
+	}
 	int rc = message_callback_funcs_.push_dml_message_func_(move(payload), any_of(begin(ReorgPendingFunctionIDS), end(ReorgPendingFunctionIDS), [functionId](auto i) {return functionId == i; }));
 	return rc;
 }
@@ -148,6 +155,9 @@ int ReadLogWrap::sendNormalCommitMessage(sqluint32 transactionTime) const
 
 	pending_scn_wrap_.remove(payload.transactionid());
 	payload.set_pendingminscn(pending_scn_wrap_.get_min_scn());
+	if (get_local_config()->get_app_log_config().log_db2_data_) {
+		LOG_DEBUG("operation:commit, committime:{}, scn:{}", transactionTime, scn_);
+	}
 	return message_callback_funcs_.push_commit_message_func_(move(payload));
 }
 
@@ -173,13 +183,18 @@ int ReadLogWrap::sendAbortMessage() const
 
 	pending_scn_wrap_.remove(payload.transactionid());
 	payload.set_pendingminscn(pending_scn_wrap_.get_min_scn());
+	if (get_local_config()->get_app_log_config().log_db2_data_) {
+		LOG_DEBUG("operation:abort, scn:{}", scn_);
+	}
 	return message_callback_funcs_.push_abort_message_func_(move(payload));
 }
 
 int ReadLogWrap::sendDDLMessage(const LocalDDLStatementLogRecord* record) const
 {
-	if (!record)
+	if (!record) {
+		LOG_DEBUG("ddl record is NULL");
 		return -1;
+	}
 
 	int32_t schemaEntryStart = -1;
 	int32_t schemaEntrySize = -1;
@@ -195,8 +210,10 @@ int ReadLogWrap::sendDDLMessage(const LocalDDLStatementLogRecord* record) const
 		}
 		entrySize += tool::reverse_value(record->entrys[i].length);
 	}
-	if (schemaEntrySize < 0)
+	if (schemaEntrySize < 0) {
+		LOG_DEBUG("schemaEntrySize:{}", schemaEntrySize);
 		return -1;
+	}
 
 	const char* const entryText = (const char*)(&record->entrys[recordNumEntries]);
 	const char* const ddlText = entryText + entrySize;
@@ -263,6 +280,9 @@ int ReadLogWrap::sendUndoDMLMessage(const LocalDMSLogRecordHeader* header, const
 
 	pending_scn_wrap_.remove(payload.transactionid());
 	payload.set_pendingminscn(pending_scn_wrap_.get_min_scn());
+	if (get_local_config()->get_app_log_config().log_db2_data_) {
+		LOG_DEBUG("operation:rollback, tableid:{}, scn:{}", tool::reverse_value(header->tableIdentifier), scn_);
+	}
 	return message_callback_funcs_.push_undo_dml_message_func_(move(payload));
 }
 
@@ -276,6 +296,9 @@ int ReadLogWrap::sendReorgTableMessage(const LocalDOMLogRecordHeader* header) co
 	payload.set_tableid(tool::reverse_value(header->tableIdentifier));
 	payload.set_tablespaceid(tool::reverse_value(header->tableSpaceIdentifier));
 
+	if (get_local_config()->get_app_log_config().log_db2_data_) {
+		LOG_DEBUG("operation:reorgtable, tableid:{}", tool::reverse_value(header->tableIdentifier));
+	}
 	return message_callback_funcs_.push_reorg_table_message_func_(move(payload));
 }
 

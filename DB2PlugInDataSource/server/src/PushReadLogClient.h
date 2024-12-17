@@ -243,20 +243,27 @@ namespace tapdata
 				it = std::find_if(it, readLogPayloadCaches_.end(),
 					[&payload](const ReadLogPayloadCache& i)
 					{
-						if (!i.reorgPending)
+						if (!i.reorgPending) {
+							LOG_DEBUG("i.reorgPending is false");
 							return false;
-						return std::any_of(i.payloads.cbegin(), i.payloads.cend(),
+						}
+						auto tmp = std::any_of(i.payloads.cbegin(), i.payloads.cend(),
 							[&payload](const ReadLogPayload& p) {return p.tableid() == payload.tableid(); });
+						LOG_DEBUG("not found equal tableid 1");
+						return tmp;
 					}
 				);
 
-				if (it == readLogPayloadCaches_.end())
+				if (it == readLogPayloadCaches_.end()) {
+					LOG_DEBUG("not found equal tableid 2");
 					break;
+				}
 
 				LOG_DEBUG("transaction:{} reorg pending change false now", it->transactionId);
 				it->reorgPending = false;//取消暂存状态
 			}
 
+			LOG_DEBUG("insert empty to trigger append_commit_payload");
 			readLogPayloadCaches_.emplace_back(ReadLogPayloadCache{ false, payload.transactionid(), {} });//插入空的为了触发append_commit_payload提交
 			return 0;
 		}
@@ -304,6 +311,24 @@ namespace tapdata
 				[&payload](const SourceTable& table) {return table.tableid() == payload.tableid(); });//过滤列表为空或者列表是所需table，则是需要的dml
 		}
 
+		bool is_special_update(const ReadLogPayload& payload)
+		{
+			if (payload.beforelogbytes().length() == 4 && payload.logbytes().length() == 4) {
+				char before[4]{0, 6, 0, 0};
+				for(size_t i = 0; i < payload.beforelogbytes().length(); i++) {
+					char tmp1 = payload.beforelogbytes().data()[i];
+					if (before[i] != tmp1) return false;
+				}
+				char after[4]{0, 0, 0, 0};
+				for(size_t i = 0; i < payload.logbytes().length(); i++) {
+					char tmp1 = payload.logbytes().data()[i];
+					if (after[i] != tmp1) return false;
+				}
+				return true;
+			}
+			return false;
+		}
+
 		//dml带有tableid
 		int32_t append_dml_payload(ReadLogPayload&& payload, bool reorgPending)
 		{
@@ -333,8 +358,13 @@ namespace tapdata
 						}
 					}
 
-					if (payload.op() != decltype(payload.op())::UNKNOWN)//UNKNOWN代表控制消息，不放入payload
-						it->payloads.emplace_back(std::move(payload));
+					if (payload.op() != decltype(payload.op())::UNKNOWN) {//UNKNOWN代表控制消息，不放入payload
+						if (payload.op() == decltype(payload.op())::UPDATE && is_special_update(payload) && it->payloads.back().op() == decltype(payload.op())::DELETE) {
+							it->payloads.pop_back();
+						} else {
+							it->payloads.emplace_back(std::move(payload));
+						}
+					}
 				}
 				else//没找到就新增
 				{

@@ -11,6 +11,7 @@ namespace tapdata
     TAPDATA_EXTERN_JSON_STR(console);
     TAPDATA_EXTERN_JSON_STR(level);
     TAPDATA_EXTERN_JSON_STR(jump_size);
+    TAPDATA_EXTERN_JSON_STR(log_db2_data);
 
     TAPDATA_EXTERN_JSON_STR(server_config);
     TAPDATA_EXTERN_JSON_STR(loop_wait_ms);

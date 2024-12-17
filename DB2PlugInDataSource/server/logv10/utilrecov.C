@@ -71,6 +71,10 @@
 #include "finally_imp.h"
 #include "tool_extern.h"
 #include "log_imp.h"
+#include <spdlog/spdlog.h>
+#include <spdlog/fmt/bin_to_hex.h>
+#include "tapdata_base64.h"
+#include "local_config.h"
 
 #if ((__cplusplus >= 199711L) && !defined DB2HP && !defined DB2AIX) || \
     (DB2LINUX && (__LP64__ || (__GNUC__ >= 3)) )
@@ -560,6 +564,11 @@ int UtilLog::LogBufferDisplay(char* logBuffer,
 
 		//cout << "    recordFlag: " << recordFlag << endl;
 
+		if (pJavaWrap.get_local_config()->get_app_log_config().log_db2_data_) {
+			string recordBase64 = tool::base64_encode(recordBuffer, recordSize);
+			LOG_DEBUG("original record: {}", recordBase64);
+			//LOG_DEBUG("original record: {}", spdlog::to_hex(recordBuffer, recordBuffer + recordSize));
+		}
 		rc = LogRecordDisplay(recordBuffer, recordSize, recordType, recordFlag, pJavaWrap);
 		CHECKRC(rc, "LogRecordDisplay");
 
@@ -645,7 +654,9 @@ int UtilLog::LogRecordDisplay(char* recordBuffer,
 			break;
 
 		default:
-			//LOG_WARN("    Unknown complex log record, recordType:{}, componentIdentifier:{}", recordType, (int)componentIdentifier);
+			if (pJavaWrap.get_local_config()->get_app_log_config().log_db2_data_) {
+				LOG_DEBUG("    Unknown complex log record, recordType:{}, componentIdentifier:{}", recordType, (int)componentIdentifier);
+			}
 			return 0;
 		}
 		recordDataBuffer = recordBuffer +
@@ -660,9 +671,13 @@ int UtilLog::LogRecordDisplay(char* recordBuffer,
 			recordDataBuffer,
 			recordDataSize, pJavaWrap);
 		CHECKRC(rc, "ComplexLogRecordDisplay");
+		//string bodyBase64 = tool::base64_encode(recordDataBuffer, recordDataSize);
+		//LOG_DEBUG("complex log, body:{}", bodyBase64);
 		break;
 	default:
-		//LOG_WARN("    Unknown log record, recordType:{}", recordType);
+		if (pJavaWrap.get_local_config()->get_app_log_config().log_db2_data_) {
+			LOG_DEBUG("    Unknown log record, recordType:{}", recordType);
+		}
 		break;
 	}
 
@@ -739,7 +754,10 @@ int UtilLog::SimpleLogRecordDisplay(sqluint16 recordType,
 	}
 
 	default:
-		//LOG_WARN("    Unknown simple log, recordType:{}", recordType);
+		if (pJavaWrap.get_local_config()->get_app_log_config().log_db2_data_) {
+			string recordBase64 = tool::base64_encode(recordDataBuffer, recordDataSize);
+			LOG_DEBUG("    Unknown simple log, recordType:{}, recordBase64:{}", recordType, recordBase64);
+		}
 
 		break;
 	}
@@ -861,6 +879,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 	case 0x04:
 	{
 		//cout << "      function ID: DDL statement Record" << endl;
+		LOG_DEBUG("function ID: DDL statement Record");
 		const LocalDDLStatementLogRecord* record = (const LocalDDLStatementLogRecord*)recordDataBuffer;
 
 		//cout << "\n >>>> operation " << tapdata::ReadLogOp::DDL;
@@ -912,6 +931,9 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 	}
 	case 0x80:
 		cout << "      function ID: Initial Table Record" << endl;
+		if (pJavaWrap.get_local_config()->get_app_log_config().log_db2_data_) {
+			LOG_DEBUG("function ID: Initial Table Record");
+		}
 		break;
 	case 0xAB:
 	{
@@ -1038,6 +1060,9 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 
 		break;
 	case 0xA5:
+		if (pJavaWrap.get_local_config()->get_app_log_config().log_db2_data_) {
+			LOG_DEBUG("function ID: Insert Record to Empty Page");
+		}
 		cout << "      function ID: Insert Record to Empty Page" << endl;
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
@@ -1051,6 +1076,9 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		CHECKRC(rc, "LogSubRecordDisplay");
 		break;
 	case 0xA4:
+		if (pJavaWrap.get_local_config()->get_app_log_config().log_db2_data_) {
+			LOG_DEBUG("function ID: Delete Record to Empty Page");
+		}
 		cout << "      function ID: Delete Record to Empty Page" << endl;
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
@@ -1064,6 +1092,9 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		CHECKRC(rc, "LogSubRecordDisplay");
 		break;
 	case 0xA6:
+		if (pJavaWrap.get_local_config()->get_app_log_config().log_db2_data_) {
+			LOG_DEBUG("function ID: Rollback delete Record to Empty Page");
+		}
 		cout << "      function ID: Rollback delete Record to Empty Page" << endl;
 		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
@@ -1147,7 +1178,11 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		}
 		break;
 	default:
-		//LOG_DEBUG("      unknown function identifier:{}", (int)functionIdentifier);
+		if (pJavaWrap.get_local_config()->get_app_log_config().log_db2_data_) {
+			string headerBase64 = tool::base64_encode(recordHeaderBuffer, recordHeaderSize);
+			string bodyBase64 = tool::base64_encode(recordDataBuffer, recordDataSize);
+			LOG_DEBUG("      unknown function identifier:{}, headerBase64:{}, bodyBase64:{}", (int)functionIdentifier, headerBase64, bodyBase64);
+		}
 		break;
 	}
 
@@ -1185,6 +1220,10 @@ int UtilLog::LogSubRecordDisplay(char* recordBuffer,
 #endif //SERVER_SUBLOG_DEBUG
 
 	recordType = *(sqluint8*)(recordBuffer);
+	if (pJavaWrap.get_local_config()->get_app_log_config().log_db2_data_) {
+		string recordBase64 = tool::base64_encode(recordBuffer, recordSize);
+		LOG_DEBUG("recordType:{}, recordBase64:{}", recordType, recordBase64);
+	}
 	if ((recordType != 0) && (recordType != 4) && (recordType != 16))
 	{
 		// LOG_DEBUG("        Unknown subrecord type:{}", recordType);
@@ -1204,7 +1243,9 @@ int UtilLog::LogSubRecordDisplay(char* recordBuffer,
 		if (updatableRecordType != 1)
 		{
 			isInternal = true;
-			//LOG_DEBUG("        subrecord type: Updatable, Internal control");
+			if (pJavaWrap.get_local_config()->get_app_log_config().log_db2_data_) {
+				LOG_DEBUG("        subrecord type: Updatable, Internal control");
+			}
 		}
 #ifdef SERVER_SUBLOG_DEBUG
 		else
