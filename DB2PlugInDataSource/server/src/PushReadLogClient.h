@@ -314,6 +314,8 @@ namespace tapdata
 		bool is_special_update(const ReadLogPayload& payload)
 		{
 			if (payload.beforelogbytes().length() == 4 && payload.logbytes().length() == 4) {
+				return true;
+
 				char before[4]{0, 6, 0, 0};
 				for(size_t i = 0; i < payload.beforelogbytes().length(); i++) {
 					char tmp1 = payload.beforelogbytes().data()[i];

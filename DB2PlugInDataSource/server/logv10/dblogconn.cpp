@@ -1388,6 +1388,18 @@ retry:
 			if (rc != 0) {
 				exit(rc);
 			}
+			// 从sqlite读取lri
+			string lri_record_lowerbound;
+			int query_time_lowerbound = time(NULL);
+			rc = lri_recorder.Query(lri_record_lowerbound, query_time_lowerbound, 1);
+			LOG_DEBUG("query sqlite, rc:{}, lri:{}, query_time_lowerbound:{}", rc, lri_record_lowerbound, query_time_lowerbound);
+			if (!lri_record_lowerbound.empty()) {
+				auto tmp = decode_lri(lri_record_lowerbound);
+				if (tool::reverse_value(tmp.part1) > tool::reverse_value(outStartLri.part1)) {
+					outStartLri = tmp;
+				}
+			}
+
 			// 先记录下来，防止被forward修改。
 			db2LRI tmp = outStartLri;
 			log_buffer_.resize(60 * 1024 * 1024);
