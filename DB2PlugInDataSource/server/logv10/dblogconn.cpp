@@ -340,7 +340,7 @@ static db2LRI parse_string(const string& start_scn, bool& error)
 class DB2ContentWraper : public UtilRecov, public UtilLog
 {
 public:
-	DB2ContentWraper(const ConnectDbSet& connect_set, size_t buffer_size = 3 * 1024 * 1024, db2Uint32 db2_version = db2Version1010) :
+	DB2ContentWraper(const ConnectDbSet& connect_set, size_t buffer_size = 500 * 1024 * 1024, db2Uint32 db2_version = db2Version1010) :
 		db2_version_{ db2_version }
 	{
 		instance_.setInstance((char*)connect_set.nodeName, (char*)connect_set.user, (char*)connect_set.pswd);
@@ -450,7 +450,9 @@ private:
 		int retry_cnt = 1000;
 retry:
 		// readlog_mutex_.multi_process_mutex_lock();
+		LOG_DEBUG("before call db2 read log");
 		rc_ = db2ReadLog(db2_version_, &read_log_input_, &sqlca);
+		LOG_DEBUG("after call db2 read log");
 		// readlog_mutex_.multi_process_mutex_unlock();
 		log_read_log_info(read_log_info_);
 		if (sqlca.sqlcode == SQLU_RLOG_INVALID_PARM && retry_cnt > 0) {
@@ -489,7 +491,9 @@ retry:
 
 			// LOG_DEBUG("db2ReadLog begin");
 			// readlog_mutex_.multi_process_mutex_lock();
+			LOG_DEBUG("before call db2 read log");
 			rc_ = db2ReadLog(db2_version_, &read_log_input_, &sqlca);
+			LOG_DEBUG("after call db2 read log");
 			// readlog_mutex_.multi_process_mutex_unlock();
 			log_read_log_info(read_log_info_);
 			if (sqlca.sqlcode != SQLU_RLOG_READ_TO_CURRENT)
@@ -920,7 +924,9 @@ retry:
 		readLogInput.iFilterOption = DB2READLOG_FILTER_ON;
 
 		// readlog_mutex_.multi_process_mutex_lock();
+		LOG_DEBUG("before call db2 read log");
 		db2ReadLog(versionNumber, &readLogInput, &sqlca);
+		LOG_DEBUG("after call db2 read log");
 		// readlog_mutex_.multi_process_mutex_unlock();
 		log_read_log_info(readLogInfo);
 
@@ -1063,7 +1069,9 @@ retry:
 		sqlca sqlca = { 0 };
 
 		// readlog_mutex_.multi_process_mutex_lock();
+		LOG_DEBUG("before call db2 read log");
 		int rc = db2ReadLog(db2_version_, &read_log_input, &sqlca);
+		LOG_DEBUG("after call db2 read log");
 		// readlog_mutex_.multi_process_mutex_unlock();
 		log_read_log_info(read_log_info);
 		LOG_DEBUG("db2ReadLog rc:{}", rc);
@@ -1778,7 +1786,9 @@ retry:
 		std::thread thread_readlog([&]{
 			signal(SIGTERM, db2readlog_sig_term_proc);
 			// readlog_mutex_.multi_process_mutex_lock();
+			LOG_DEBUG("before call db2 read log");
 			db2ReadLog(versionNumber, &readLogInput, &sqlca);
+			LOG_DEBUG("after call db2 read log");
 			// readlog_mutex_.multi_process_mutex_unlock();
 			log_read_log_info(readLogInfo);
 			cond_wait.notify_one();
@@ -1830,7 +1840,9 @@ retry:
 		readLogInput.poReadLogInfo = &readLogInfo;
 
 		// readlog_mutex_.multi_process_mutex_lock();
+		LOG_DEBUG("before call db2 read log");
 		db2ReadLog(versionNumber, &readLogInput, &sqlca);
+		LOG_DEBUG("after call db2 read log");
 		// readlog_mutex_.multi_process_mutex_unlock();
 		log_read_log_info(readLogInfo);
 
@@ -1852,7 +1864,9 @@ retry:
 	int64_t accelerate_find(db2Uint32 versionNumber, db2ReadLogStruct& readLogInput, db2ReadLogInfoStruct& readLogInfo, struct sqlca& sqlca, db2LRI& endLRI, db2LRI& startLRI, char* logBuffer)
 	{
 		// readlog_mutex_.multi_process_mutex_lock();
+		LOG_DEBUG("before call db2 read log");
 		db2ReadLog(versionNumber, &readLogInput, &sqlca);
+		LOG_DEBUG("after call db2 read log");
 		// readlog_mutex_.multi_process_mutex_unlock();
 		log_read_log_info(readLogInfo);
 
@@ -1925,7 +1939,9 @@ retry:
 		sqlca sqlca = { 0 };
 
 		// readlog_mutex_.multi_process_mutex_lock();
+		LOG_DEBUG("before call db2 read log");
 		rc_ = db2ReadLog(db2_version_, &read_log_input_, &sqlca);
+		LOG_DEBUG("after call db2 read log");
 		// readlog_mutex_.multi_process_mutex_unlock();
 		log_read_log_info(read_log_info_);
 		LOG_DEBUG("db2ReadLog rc_:{}", rc_);
