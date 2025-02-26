@@ -141,6 +141,7 @@ int ReadLogWrap::sendDMLMessage(int functionId, tapdata::ReadLogOp op, sqluint32
 		if (logRecordBuffer) afterBase64 = tool::base64_encode(logRecordBuffer, logRecordSize);
 		LOG_DEBUG("operation:{}, tableid:{}, before:{}, after:{}, scn:{}, tid:{}, rid:{}, fid:{}", op, tool::reverse_value(header->tableIdentifier), beforeBase64, afterBase64, scn_, payload.transactionid(), rid, functionId);
 	}
+	//LOG_DEBUG("ReadLogWrap::sendDMLMessage scn:{}", scn_);
 	int rc = message_callback_funcs_.push_dml_message_func_(move(payload), any_of(begin(ReorgPendingFunctionIDS), end(ReorgPendingFunctionIDS), [functionId](auto i) {return functionId == i; }));
 	return rc;
 }
@@ -158,6 +159,7 @@ int ReadLogWrap::sendNormalCommitMessage(sqluint32 transactionTime) const
 	if (get_local_config()->get_app_log_config().log_db2_data_) {
 		LOG_DEBUG("operation:commit, committime:{}, scn:{}", transactionTime, scn_);
 	}
+	//LOG_DEBUG("ReadLogWrap::sendNormalCommitMessage scn:{}", scn_);
 	return message_callback_funcs_.push_commit_message_func_(move(payload));
 }
 
@@ -340,7 +342,7 @@ static db2LRI parse_string(const string& start_scn, bool& error)
 class DB2ContentWraper : public UtilRecov, public UtilLog
 {
 public:
-	DB2ContentWraper(const ConnectDbSet& connect_set, size_t buffer_size = 500 * 1024 * 1024, db2Uint32 db2_version = db2Version1010) :
+	DB2ContentWraper(const ConnectDbSet& connect_set, size_t buffer_size = 20 * 1024 * 1024, db2Uint32 db2_version = db2Version1010) :
 		db2_version_{ db2_version }
 	{
 		instance_.setInstance((char*)connect_set.nodeName, (char*)connect_set.user, (char*)connect_set.pswd);
@@ -1366,8 +1368,13 @@ retry:
 		LOG_DEBUG("outEndLri: {}.{}.{}", tool::reverse_value(outEndLri.lriType), tool::reverse_value(outEndLri.part1), tool::reverse_value(outEndLri.part2));
 		LOG_DEBUG("read_log_info_.initialLRI: {}.{}.{}", tool::reverse_value(read_log_info_.initialLRI.lriType), tool::reverse_value(read_log_info_.initialLRI.part1), tool::reverse_value(read_log_info_.initialLRI.part2));
 
-		if (!rlw.cache_lri() && outStartLri.lriType && outStartLri.part1 && outStartLri.part2)//既然有值,在此结束
-			return 0;
+		if (!rlw.cache_lri() && outStartLri.lriType && outStartLri.part1 && outStartLri.part2) { //既然有值,在此结束
+    		log_lri("outStartLri after init_read_log_struct", outStartLri);
+        	//outStartLri.part1 = tool::reverse_value(tool::reverse_value(outStartLri.part1) - 1);
+			//outStartLri.part2 = tool::reverse_value(tool::reverse_value(outStartLri.part2) - 2);
+			//LOG_DEBUG("after minus, outStartLri:{}.{}.{}", outStartLri.lriType, outStartLri.part1, outStartLri.part2);
+            return 0;
+        }
 
 		sqlca sqlca{};
 		if (outStartLri.lriType && !outStartLri.part1 && outStartLri.part2) {
@@ -1397,12 +1404,12 @@ retry:
 				exit(rc);
 			}
 			// 从sqlite读取lri
-			string lri_record_lowerbound;
-			int query_time_lowerbound = time(NULL);
-			rc = lri_recorder.Query(lri_record_lowerbound, query_time_lowerbound, 1);
-			LOG_DEBUG("query sqlite, rc:{}, lri:{}, query_time_lowerbound:{}", rc, lri_record_lowerbound, query_time_lowerbound);
-			if (!lri_record_lowerbound.empty()) {
-				auto tmp = decode_lri(lri_record_lowerbound);
+			string lri_record_upperbound;
+			int query_time_upperbound = time(NULL);
+			rc = lri_recorder.Query(lri_record_upperbound, query_time_upperbound, 0);
+			LOG_DEBUG("query sqlite, rc:{}, lri:{}, query_time_upperbound:{}", rc, lri_record_upperbound, query_time_upperbound);
+			if (!lri_record_upperbound.empty()) {
+				auto tmp = decode_lri(lri_record_upperbound);
 				if (tool::reverse_value(tmp.part1) > tool::reverse_value(outStartLri.part1)) {
 					outStartLri = tmp;
 				}

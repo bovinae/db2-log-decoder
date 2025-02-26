@@ -71,7 +71,7 @@ namespace tapdata
 				if (last_result < 0)
 					return -1;
 				while (batch_payloads_.size() > cache_batch_size && get_app<DB2ReadLogApp>()->keep_run()) {
-					// LOG_DEBUG("batch queue is full");
+					LOG_DEBUG("batch queue is full");
 					std::this_thread::sleep_for(std::chrono::milliseconds(500));
 				}
 				if (get_app<DB2ReadLogApp>()->keep_run())
@@ -92,6 +92,7 @@ namespace tapdata
 					{
 						if (!get_app<DB2ReadLogApp>()->keep_run())
 							break;
+						LOG_DEBUG("push sleep ms:{}", result > 0x400 ? 0x400 : result);
 						std::this_thread::sleep_for(std::chrono::milliseconds(result > 0x400 ? 0x400 : result));
 						result -= 0x400;
 					}
@@ -188,7 +189,7 @@ namespace tapdata
 		//0为ok，小于0出错
 		int32_t push_abort(ReadLogPayload&& payload)
 		{
-			LOG_DEBUG("recv abort log: transaction id:{}", payload.transactionid());
+			//LOG_DEBUG("recv abort log: transaction id:{}", payload.transactionid());
 			const auto it = std::find_if(readLogPayloadCaches_.begin(), readLogPayloadCaches_.end(),
 				[&payload](const ReadLogPayloadCache& i) { return i.transactionId == payload.transactionid(); });
 
@@ -222,7 +223,7 @@ namespace tapdata
 		//0为ok，小于0出错
 		int32_t push_undo_dml(ReadLogPayload&& payload)
 		{
-			LOG_DEBUG("recv undo dml log: transaction id:{}", payload.transactionid());
+			// LOG_DEBUG("recv undo dml log: transaction id:{}", payload.transactionid());
 			const auto it = std::find_if(readLogPayloadCaches_.begin(), readLogPayloadCaches_.end(),
 				[&payload](const ReadLogPayloadCache& i) { return i.transactionId == payload.transactionid(); });
 			if (it != readLogPayloadCaches_.end())//找到了就删除
@@ -302,9 +303,10 @@ namespace tapdata
 		{
 			if (test_drop_first_scn)
 			{
-				if (payload.scn() == readLogRequest_.scn())//表示断点设定了scn是需要丢弃的dml
-					return false;
-				else
+				if (payload.scn() == readLogRequest_.scn()) {//表示断点设定了scn是需要丢弃的dml
+					LOG_DEBUG("not drop first scn, scn:{}", payload.scn());
+					return true;
+				} else
 					test_drop_first_scn = false;//表示第一条scn已经丢弃完毕，下次不需要再进入此判断
 			}
 			return readLogRequest_.tables().empty() || std::any_of(readLogRequest_.tables().cbegin(), readLogRequest_.tables().cend(),
@@ -337,8 +339,10 @@ namespace tapdata
 			//过滤掉不需要的数据
 			auto isNeeded = test_dml_needed(payload);
 
-			if (!isNeeded && payload.op() != decltype(payload.op())::UNKNOWN)//既不需要也不是控制消息，直接返回，丢弃该payload，UNKNOWN代表控制消息
+			if (!isNeeded && payload.op() != decltype(payload.op())::UNKNOWN) { //既不需要也不是控制消息，直接返回，丢弃该payload，UNKNOWN代表控制消息
+				LOG_DEBUG("not append dml, scn:{}, tid:{}", payload.scn(), payload.transactionid());
 				return 0;
+			}
 
 			const auto it = std::find_if(readLogPayloadCaches_.begin(), readLogPayloadCaches_.end(),
 				[&payload](const ReadLogPayloadCache& i) { return i.transactionId == payload.transactionid(); });
@@ -362,8 +366,10 @@ namespace tapdata
 
 					if (payload.op() != decltype(payload.op())::UNKNOWN) {//UNKNOWN代表控制消息，不放入payload
 						if (payload.op() == decltype(payload.op())::UPDATE && is_special_update(payload) && it->payloads.back().op() == decltype(payload.op())::DELETE) {
+							LOG_DEBUG("drop special update, last payload scn:{}, payload scn: {}", it->payloads.back().scn(), payload.scn());
 							it->payloads.pop_back();
 						} else {
+                            //LOG_DEBUG("append paload, scn:{}", payload.scn());
 							it->payloads.emplace_back(std::move(payload));
 						}
 					}
@@ -372,8 +378,10 @@ namespace tapdata
 				{
 					auto transactionId = payload.transactionid();
 					std::vector<ReadLogPayload> payloads;
-					if (payload.op() != decltype(payload.op())::UNKNOWN)//UNKNOWN代表控制消息，不放入payload
+					if (payload.op() != decltype(payload.op())::UNKNOWN) { //UNKNOWN代表控制消息，不放入payload
+						//LOG_DEBUG("append dml, scn:{}, tid:{}", payload.scn(), payload.transactionid());
 						payloads.emplace_back(std::move(payload));
+					}
 					readLogPayloadCaches_.emplace_back(ReadLogPayloadCache{ reorgPending, std::move(transactionId), std::move(payloads) });
 				}
 			}
@@ -381,6 +389,7 @@ namespace tapdata
 			{
 				if (it != readLogPayloadCaches_.end())//把之前的缓存消息符合该tableid的全部清空，包括ddl
 				{
+					LOG_DEBUG("remove message, scn:{}, tid:{}", payload.scn(), payload.transactionid());
 					const auto temp_it = std::remove_if(it->payloads.begin(), it->payloads.end(),
 						[&payload](const ReadLogPayload& p) { return p.tableid() == payload.tableid() || p.op() == decltype(p.op())::DDL; });
 					it->payloads.erase(temp_it, it->payloads.end());
@@ -395,16 +404,20 @@ namespace tapdata
 			// LOG_DEBUG("commit transactiontime:{},scn:{}", payload.transactiontime(), payload.scn());
 			const auto it = std::find_if(readLogPayloadCaches_.begin(), readLogPayloadCaches_.end(),
 				[&payload](const ReadLogPayloadCache& i) { return i.transactionId == payload.transactionid(); });
-			if (it == readLogPayloadCaches_.end())
+			if (it == readLogPayloadCaches_.end()) {
+            	LOG_DEBUG("not found from readLogPayloadCaches_, scn:{}, tid:{}", payload.scn(), payload.transactionid());
 				return 0;
+            }
 
 			if (it->payloads.empty() || (readLogRequest_.stime() > 0 && payload.transactiontime() < readLogRequest_.stime()))//空的或者在所需时间戳之前的就删除
 				readLogPayloadCaches_.erase(it);
 			else
 			{
 				it->payloads.emplace_back(std::move(payload));
-				if (it->reorgPending)//暂存的就返回
+				if (it->reorgPending) { //暂存的就返回
+					LOG_DEBUG("reorgPending, scn:{}", payload.scn());
 					return 0;
+				}
 			}
 			return flash_push();
 		}
