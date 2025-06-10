@@ -534,6 +534,7 @@ int UtilLog::LogBufferDisplay(char* logBuffer,
 	}
 	recordBuffer = logBuffer;
 
+	LOG_DEBUG("UtilLog::LogBufferDisplay numLogRecords:{}", numLogRecords);
 	for (logRecordNb = 0; logRecordNb < numLogRecords; logRecordNb++)
 	{
 		if (conn == 1)
