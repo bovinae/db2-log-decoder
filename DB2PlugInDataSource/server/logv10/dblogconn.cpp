@@ -982,22 +982,22 @@ retry:
 		// if (rc_ < 0) return ;
 
 		sqlca sqlca{};
-		int step = 60000;
-		db2LRI beginLri = {0};
-		db2LRI endLri = currLri;
+		int step = 10;
+		db2LRI beginLri = currLri;
+		db2LRI endLri;
+		endLri.lriType = currLri.lriType;
+		endLri.part1 = (decltype(endLri.part1))0xFFFFFFFFFFFF;
+		endLri.part2 = (decltype(endLri.part2))-1;
+		tool::reverse_bytes(&endLri.part1);
+		tool::reverse_bytes(&endLri.part2);
 		// lri_and_time last_lri_and_time;
 		// last_lri_and_time.lri = currLri;
 		// last_lri_and_time.time = time(NULL);
 		// LOG_DEBUG("current time:{}", last_lri_and_time.time);
 		// auto start = time(NULL);
 		LOG_DEBUG("async read lri forward, log buffer size: {}", log_buffer_.size());
+		db2LRI lastLri = {0};
 		while(rlw.isRunning()) {
-			beginLri = endLri;
-			endLri.part1 = tool::reverse_value((tool::reverse_value(endLri.part1) + step) % 0xFFFFFFFFFFFF);
-			endLri.part2 = tool::reverse_value((tool::reverse_value(endLri.part2) + 2*step) % 0xFFFFFFFFFFFFFFFF);
-			log_lri("async read lri forward, beginLri", beginLri);
-			log_lri("async read lri forward, endLri  ", endLri);
-retry:
 			// auto duration_s = time(NULL) - start;
 			// LOG_DEBUG("duration_s:{}", duration_s);
 			// if (duration_s >= 300) {
@@ -1008,24 +1008,21 @@ retry:
 			std::vector<lri_and_time> lri_and_time_vec;
 			int ret = read_lri_sequentially("async read lri forward", db2_version_, read_log_input_, read_log_info_, sqlca, endLri, beginLri, log_buffer_, lri_and_time_vec);
 			if (ret < 0) {
-				sleep(60);
+				sleep(3);
 				if (ret == SQLU_RLOG_INVALID_PARM) {
 					LOG_DEBUG("async read lri forward, no record because of query beginning lri is too large, ret:{}", ret);
-					endLri = beginLri;
-					if (tool::reverse_value(endLri.part1) > (long unsigned int)step) {
-						endLri.part1 = tool::reverse_value(tool::reverse_value(endLri.part1) - step);
+					if (tool::reverse_value(beginLri.part1) - (long unsigned int)step > tool::reverse_value(lastLri.part1)) {
+						beginLri.part1 = tool::reverse_value(tool::reverse_value(beginLri.part1) - step);
 					} else {
-						endLri.part1 = tool::reverse_value(0);
+						beginLri.part1 = lastLri.part1;
 					}
-					if (tool::reverse_value(endLri.part2) > (long unsigned int)2*step) {
-						endLri.part2 = tool::reverse_value(tool::reverse_value(endLri.part2) - 2*step);
+					if (tool::reverse_value(beginLri.part2) - (long unsigned int)2*step > tool::reverse_value(lastLri.part2)) {
+						beginLri.part2 = tool::reverse_value(tool::reverse_value(beginLri.part2) - 2*step);
 					} else {
-						endLri.part2 = tool::reverse_value(0);
+						beginLri.part2 = lastLri.part2;
 					}
-					continue;
 				}
-				if (rlw.isRunning())
-					goto retry;
+				continue;
 			}
 			if (lri_and_time_vec.size() == 0) {
 				LOG_DEBUG("async read lri forward, no lri and time");
@@ -1036,11 +1033,9 @@ retry:
 				LOG_DEBUG("async read lri forward, lri:{}, time:{}", encode_lri(lri_and_time.lri), lri_and_time.time);
 				lri_recorder.Insert(encode_lri(lri_and_time.lri), lri_and_time.time);
 			}
+			lastLri = lri_and_time_vec.back().lri;
 			// Read the next log sequence
-			memcpy(&endLri, &(read_log_info_.nextStartLRI), sizeof(endLri));
-			//endLri = lri_and_time_vec.back().lri;
-			//endLri.part1 = tool::reverse_value(tool::reverse_value(endLri.part1) + 1);
-			//endLri.part2 = tool::reverse_value(tool::reverse_value(endLri.part2) + 1);
+			memcpy(&beginLri, &(read_log_info_.nextStartLRI), sizeof(beginLri));
 			if (sqlca.sqlcode == SQLU_RLOG_READ_TO_CURRENT) {
 				LOG_DEBUG("async read lri forward, read to current");
 				sleep(60);
