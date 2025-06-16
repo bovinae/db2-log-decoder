@@ -1000,6 +1000,7 @@ retry:
 		LOG_DEBUG("async read lri forward, log buffer size: {}", log_buffer_.size());
 		db2LRI lastLri = {0};
 		while(rlw.isRunning()) {
+			log_lri("async read lri forward, beginLri", beginLri);
 			// auto duration_s = time(NULL) - start;
 			// LOG_DEBUG("duration_s:{}", duration_s);
 			// if (duration_s >= 300) {
