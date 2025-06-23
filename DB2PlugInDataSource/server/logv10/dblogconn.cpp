@@ -1400,12 +1400,12 @@ retry:
 				exit(rc);
 			}
 			// 从sqlite读取lri
-			string lri_record_upperbound;
-			int query_time_upperbound = time(NULL);
-			rc = lri_recorder.Query(lri_record_upperbound, query_time_upperbound, 0);
-			LOG_DEBUG("query sqlite, rc:{}, lri:{}, query_time_upperbound:{}", rc, lri_record_upperbound, query_time_upperbound);
-			if (!lri_record_upperbound.empty()) {
-				auto tmp = decode_lri(lri_record_upperbound);
+			string lri_record_lowerbound;
+			int query_time_lowerbound = time(NULL);
+			rc = lri_recorder.Query(lri_record_lowerbound, query_time_lowerbound, 0);
+			LOG_DEBUG("query sqlite, rc:{}, lri:{}, query_time_lowerbound:{}", rc, lri_record_lowerbound, query_time_lowerbound);
+			if (!lri_record_lowerbound.empty()) {
+				auto tmp = decode_lri(lri_record_lowerbound);
 				if (tool::reverse_value(tmp.part1) > tool::reverse_value(outStartLri.part1)) {
 					outStartLri = tmp;
 				}
@@ -1507,6 +1507,8 @@ retry:
 					return 0;
 				}
 			}
+			LOG_DEBUG("no lri found in sqlite3, task exit");
+			return -1;
 		}
 
 		//下方开始进行lri跳转

@@ -71,9 +71,9 @@ int tapdata::LriRecorder::Query(std::string& lri, int& time, int direction)
    /* select SQL statement */
    std::string sql;
    if (direction == 0) {
-      sql = "SELECT * from " + table_name_ + " where time <=" + std::to_string(time) + " order by time desc limit 1;";
+      sql = "SELECT * from " + table_name_ + " where time <= " + std::to_string(time) + " and time >= " + std::to_string(time-3*86400) + " order by time desc limit 1;";
    } else {
-      sql = "SELECT * from " + table_name_ + " where time >=" + std::to_string(time) + " order by time asc limit 1;";
+      sql = "SELECT * from " + table_name_ + " where time >= " + std::to_string(time) + " order by time asc limit 1;";
    }
    // const char* data = "Callback function called";
 
