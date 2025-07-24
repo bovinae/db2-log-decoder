@@ -31,7 +31,7 @@ namespace tapdata {
       int CreateTable();
       int Insert(std::string lri, int time);
       // query one record <= input time or >= input time, decided by direction. 0-less than or equal; 1-greater than or equal
-      int Query(std::string& lri, int& time, int direction);
+      int Query(std::string& lri, int& time, int direction, int time_back);
       int Delete(int time);
       int DropTable();
       int Close();

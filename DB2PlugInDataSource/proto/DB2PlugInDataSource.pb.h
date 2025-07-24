@@ -1702,6 +1702,7 @@ class ReadLogRequest final :
     kStimeFieldNumber = 5,
     kBigEndianFieldNumber = 2,
     kCacheLriFieldNumber = 9,
+    kTimeBackFieldNumber = 10,
   };
   // repeated .tapdata.SourceTable tables = 6;
   int tables_size() const;
@@ -1830,6 +1831,15 @@ class ReadLogRequest final :
   void _internal_set_cachelri(bool value);
   public:
 
+  // int32 timeBack = 10;
+  void clear_timeback();
+  ::PROTOBUF_NAMESPACE_ID::int32 timeback() const;
+  void set_timeback(::PROTOBUF_NAMESPACE_ID::int32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::int32 _internal_timeback() const;
+  void _internal_set_timeback(::PROTOBUF_NAMESPACE_ID::int32 value);
+  public:
+
   // @@protoc_insertion_point(class_scope:tapdata.ReadLogRequest)
  private:
   class _Internal;
@@ -1846,6 +1856,7 @@ class ReadLogRequest final :
   ::PROTOBUF_NAMESPACE_ID::int64 stime_;
   bool bigendian_;
   bool cachelri_;
+  ::PROTOBUF_NAMESPACE_ID::int32 timeback_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_DB2PlugInDataSource_2eproto;
 };
@@ -5167,6 +5178,26 @@ inline void ReadLogRequest::_internal_set_cachelri(bool value) {
 inline void ReadLogRequest::set_cachelri(bool value) {
   _internal_set_cachelri(value);
   // @@protoc_insertion_point(field_set:tapdata.ReadLogRequest.cacheLri)
+}
+
+// int32 timeBack = 10;
+inline void ReadLogRequest::clear_timeback() {
+  timeback_ = 0;
+}
+inline ::PROTOBUF_NAMESPACE_ID::int32 ReadLogRequest::_internal_timeback() const {
+  return timeback_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::int32 ReadLogRequest::timeback() const {
+  // @@protoc_insertion_point(field_get:tapdata.ReadLogRequest.timeBack)
+  return _internal_timeback();
+}
+inline void ReadLogRequest::_internal_set_timeback(::PROTOBUF_NAMESPACE_ID::int32 value) {
+  
+  timeback_ = value;
+}
+inline void ReadLogRequest::set_timeback(::PROTOBUF_NAMESPACE_ID::int32 value) {
+  _internal_set_timeback(value);
+  // @@protoc_insertion_point(field_set:tapdata.ReadLogRequest.timeBack)
 }
 
 // -------------------------------------------------------------------

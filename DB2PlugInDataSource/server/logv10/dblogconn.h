@@ -145,7 +145,7 @@ struct ReorgTableLogRecord
 extern bool cache_switch;
 struct ReadLogWrap
 {
-	ReadLogWrap(tapdata::ReadLogRequest readLogRequest, const tapdata::local_config* local_config) : time_off_set_(readLogRequest.stime()), cache_lri_(readLogRequest.cachelri()), local_config_(local_config)
+	ReadLogWrap(tapdata::ReadLogRequest readLogRequest, const tapdata::local_config* local_config) : time_off_set_(readLogRequest.stime()), cache_lri_(readLogRequest.cachelri()), time_back_(readLogRequest.timeback()), local_config_(local_config)
 	{
 		lri_record_name_ = "";
 		if (readLogRequest.cachelri() || cache_switch) {
@@ -258,6 +258,10 @@ struct ReadLogWrap
 	{
 		return cache_lri_;
 	}
+	int32_t time_back() const
+	{
+		return time_back_;
+	}
 
 	const tapdata::local_config* get_local_config() const
 	{
@@ -268,6 +272,7 @@ private:
 	const int64_t time_off_set_;
 	std::string lri_record_name_;
 	bool cache_lri_;
+        int32_t time_back_;
 	message_callback_funcs message_callback_funcs_;
 
 	db2LRI current_lri_{};

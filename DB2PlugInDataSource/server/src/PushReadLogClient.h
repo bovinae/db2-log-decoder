@@ -303,7 +303,7 @@ namespace tapdata
 		{
 			if (test_drop_first_scn)
 			{
-				if (payload.scn() == readLogRequest_.scn()) {//表示断点设定了scn是需要丢弃的dml
+				if (payload.scn() == readLogRequest_.scn()) { //表示断点设定了scn是需要丢弃的dml
 					LOG_DEBUG("not drop first scn, scn:{}", payload.scn());
 					return true;
 				} else
@@ -340,7 +340,7 @@ namespace tapdata
 			auto isNeeded = test_dml_needed(payload);
 
 			if (!isNeeded && payload.op() != decltype(payload.op())::UNKNOWN) { //既不需要也不是控制消息，直接返回，丢弃该payload，UNKNOWN代表控制消息
-				LOG_DEBUG("not append dml, scn:{}, tid:{}", payload.scn(), payload.transactionid());
+				//LOG_DEBUG("not append dml, scn:{}, tid:{}", payload.scn(), payload.transactionid());
 				return 0;
 			}
 
@@ -404,10 +404,8 @@ namespace tapdata
 			// LOG_DEBUG("commit transactiontime:{},scn:{}", payload.transactiontime(), payload.scn());
 			const auto it = std::find_if(readLogPayloadCaches_.begin(), readLogPayloadCaches_.end(),
 				[&payload](const ReadLogPayloadCache& i) { return i.transactionId == payload.transactionid(); });
-			if (it == readLogPayloadCaches_.end()) {
-            	LOG_DEBUG("not found from readLogPayloadCaches_, scn:{}, tid:{}", payload.scn(), payload.transactionid());
+			if (it == readLogPayloadCaches_.end())
 				return 0;
-            }
 
 			if (it->payloads.empty() || (readLogRequest_.stime() > 0 && payload.transactiontime() < readLogRequest_.stime()))//空的或者在所需时间戳之前的就删除
 				readLogPayloadCaches_.erase(it);

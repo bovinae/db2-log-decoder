@@ -1340,6 +1340,8 @@ retry:
 		db2LRI& outStartLri = rlw.get_current_lri();
 		db2LRI& outEndLri = rlw.get_end_lri_();
 		std::string lri_record_name = rlw.lri_record_name();
+		int32_t time_back = 7 * 86400;
+		if (rlw.time_back() > 0) time_back = rlw.time_back();
 
 		log_lri("outStartLri", outStartLri);
 		if (outStartLri.part1 == 0) {
@@ -1402,7 +1404,7 @@ retry:
 			// 从sqlite读取lri
 			string lri_record_lowerbound;
 			int query_time_lowerbound = time(NULL);
-			rc = lri_recorder.Query(lri_record_lowerbound, query_time_lowerbound, 0);
+			rc = lri_recorder.Query(lri_record_lowerbound, query_time_lowerbound, 0, time_back);
 			LOG_DEBUG("query sqlite, rc:{}, lri:{}, query_time_lowerbound:{}", rc, lri_record_lowerbound, query_time_lowerbound);
 			if (!lri_record_lowerbound.empty()) {
 				auto tmp = decode_lri(lri_record_lowerbound);
@@ -1473,9 +1475,9 @@ retry:
 			}
 			string lri_record_lowerbound, lri_record_upperbound;
 			int query_time_lowerbound = timeOffset, query_time_upperbound = timeOffset;
-			lri_recorder.Query(lri_record_lowerbound, query_time_lowerbound, 0);
+			lri_recorder.Query(lri_record_lowerbound, query_time_lowerbound, 0, time_back);
 			LOG_DEBUG("rc:{}, lri:{}, query_time_lowerbound:{}", rc, lri_record_lowerbound, query_time_lowerbound);
-			lri_recorder.Query(lri_record_upperbound, query_time_upperbound, 1);
+			lri_recorder.Query(lri_record_upperbound, query_time_upperbound, 1, time_back);
 			LOG_DEBUG("rc:{}, lri:{}, query_time_upperbound:{}", rc, lri_record_upperbound, query_time_upperbound);
 			if (query_time_lowerbound == query_time_upperbound && query_time_lowerbound != 0) {
 				outStartLri = decode_lri(lri_record_lowerbound);

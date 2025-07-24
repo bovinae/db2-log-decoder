@@ -13,7 +13,7 @@ namespace tapdata
 
         void add(const std::string& scn, const std::string& transaction_id)
         {
-            LOG_DEBUG("[PendingScnWrap] scn:{}, tid:{}", scn, transaction_id);
+            //LOG_DEBUG("[PendingScnWrap] scn:{}, tid:{}", scn, transaction_id);
             auto it = pending_scns_.insert({scn, transaction_id}).first;
 	    	pending_tid_it_[transaction_id].push_back(it);
         }
