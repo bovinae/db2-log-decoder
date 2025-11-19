@@ -1,6 +1,8 @@
 #include <sstream>
 #include <string>
 #include <memory>
+#include <chrono>
+
 #include "sqladef.h"
 #include "DB2ReadLogApp.h"
 #include "tool.h"
@@ -96,6 +98,7 @@ static const short sqlIsInputHvar = SQL_IS_INPUT_HVAR;
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 using namespace std;
+using namespace std::chrono;
 
 bool ReadLogWrap::isRunning() const
 {
@@ -483,6 +486,7 @@ retry:
 		rc_ = LogBufferDisplay(log_buffer_.data(), tool::reverse_value(read_log_info_.logRecsWritten), 1, rlw);
 		CHECKRC(rc_, "UtilLog.LogBufferDisplay");
 
+        auto last = steady_clock::now();
 		while (rlw.isRunning())
 		{
 			// Read the next log sequence
@@ -507,8 +511,11 @@ retry:
 			rc_ = LogBufferDisplay(log_buffer_.data(), tool::reverse_value(read_log_info_.logRecsWritten), 1, rlw);
 			CHECKRC(rc_, "LogBufferDisplay");
 			if (!read_log_info_.logRecsWritten) {
-				// sleep(2);
-				rlw.sendHeartbeatMessage();
+				auto now = steady_clock::now();
+                if (duration_cast<seconds>(now - last).count() >= 3) {
+                    rlw.sendHeartbeatMessage();
+                    last = now;
+                }
 				msleep(sleep_interval);
 			}
 		}

@@ -171,6 +171,9 @@ struct ReadLogWrap
     int sendNormalCommitMessage(sqluint32 transactionTime) const;
 
     //返回小于0表示出错，直接退出
+    int sendHeartbeatMessage() const;
+
+    //返回小于0表示出错，直接退出
     int sendAbortMessage() const;
 
     //返回小于0表示出错，直接退出

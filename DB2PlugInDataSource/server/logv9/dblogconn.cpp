@@ -1,5 +1,7 @@
 #include <string>
 #include <memory>
+#include <chrono>
+
 #include "sqladef.h"
 #include "DB2ReadLogApp.h"
 #include "tool_extern.h"
@@ -92,6 +94,7 @@ static const short sqlIsInputHvar = SQL_IS_INPUT_HVAR;
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 using namespace std;
+using namespace std::chrono;
 
 bool ReadLogWrap::isRunning() const
 {
@@ -145,6 +148,18 @@ int ReadLogWrap::sendNormalCommitMessage(sqluint32 transactionTime) const
 	pending_scn_wrap_.remove(payload.transactionid());
 	payload.set_pendingminscn(pending_scn_wrap_.get_min_scn());
 	return message_callback_funcs_.push_commit_message_func_(move(payload));
+}
+
+int ReadLogWrap::sendHeartbeatMessage() const
+{
+    tapdata::ReadLogPayload payload;
+    payload.set_op(tapdata::ReadLogOp::HEARTBEAT);
+    payload.set_scn(scn_);
+    payload.set_transactionid("-1");
+    payload.set_pendingminscn(pending_scn_wrap_.get_min_scn());
+    auto currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    payload.set_transactiontime(currentTime);
+    return message_callback_funcs_.push_heartbeat_message_func_(move(payload));
 }
 
 //返回小于0表示出错，直接退出
@@ -309,6 +324,7 @@ private:
 		rc_ = LogBufferDisplay(log_buffer_.data(), tool::reverse_value(read_log_info_.logRecsWritten), 1, rlw);
 		CHECKRC(rc_, "UtilLog.LogBufferDisplay");
 
+        auto last = steady_clock::now();
 		while (rlw.isRunning())
 		{
 			// Read the next log sequence
@@ -327,8 +343,14 @@ private:
 			//从db2来的数值，需翻转
 			rc_ = LogBufferDisplay(log_buffer_.data(), tool::reverse_value(read_log_info_.logRecsWritten), 1, rlw);
 			CHECKRC(rc_, "LogBufferDisplay");
-			if (!read_log_info_.logRecsWritten)
+			if (!read_log_info_.logRecsWritten) {
+                auto now = steady_clock::now();
+                if (duration_cast<seconds>(now - last).count() >= 3) {
+                    rlw.sendHeartbeatMessage();
+                    last = now;
+                }
 				msleep(sleep_interval);
+            }
 		}
 
 #if 0
