@@ -980,8 +980,6 @@ retry:
 	// 从currLri顺序往前读
 	void async_read_lri_forward(tapdata::LriRecorder& lri_recorder, db2LRI& currLri, ReadLogWrap &rlw) {
 		LOG_DEBUG("enter async read lri forward");
-		// rc_ = init_read_log_struct();
-		// if (rc_ < 0) return ;
 
 		sqlca sqlca{};
 		int step = 10;
@@ -992,25 +990,15 @@ retry:
 		endLri.part2 = (decltype(endLri.part2))-1;
 		tool::reverse_bytes(&endLri.part1);
 		tool::reverse_bytes(&endLri.part2);
-		// lri_and_time last_lri_and_time;
-		// last_lri_and_time.lri = currLri;
-		// last_lri_and_time.time = time(NULL);
-		// LOG_DEBUG("current time:{}", last_lri_and_time.time);
-		// auto start = time(NULL);
 		LOG_DEBUG("async read lri forward, log buffer size: {}", log_buffer_.size());
 		db2LRI lastLri = {0};
 		while(rlw.isRunning()) {
 			log_lri("async read lri forward, beginLri", beginLri);
-			// auto duration_s = time(NULL) - start;
-			// LOG_DEBUG("duration_s:{}", duration_s);
-			// if (duration_s >= 300) {
-			// 	last_lri_and_time.time = time(NULL);
-			// 	lri_recorder.Insert(encode_lri(last_lri_and_time.lri), last_lri_and_time.time);
-			// 	start = time(NULL);
-			// }
 			std::vector<lri_and_time> lri_and_time_vec;
 			int ret = read_lri_sequentially("async read lri forward", db2_version_, read_log_input_, read_log_info_, sqlca, endLri, beginLri, log_buffer_, lri_and_time_vec);
 			if (ret < 0) {
+				return ;
+
 				sleep(3);
 				if (ret == SQLU_RLOG_INVALID_PARM) {
 					LOG_DEBUG("async read lri forward, no record because of query beginning lri is too large, ret:{}", ret);
@@ -1509,8 +1497,8 @@ retry:
 					return 0;
 				}
 			}
-			LOG_DEBUG("no lri found in sqlite3, task exit");
-			return -1;
+			// LOG_DEBUG("no lri found in sqlite3, task exit");
+			// return -1;
 		}
 
 		//下方开始进行lri跳转

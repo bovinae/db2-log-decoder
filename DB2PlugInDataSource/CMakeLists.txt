@@ -74,8 +74,6 @@ endif()
 include_directories (share)
 include_directories (proto)
 
-aux_source_directory (client CLIENT_SRCS)
-
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g -O0 -std=c++17 ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -std=c++17 ${CMAKE_CXX_FLAGS}")
 
@@ -87,17 +85,25 @@ execute_process(COMMAND tar -xvf  ${PROJECT_SOURCE_DIR}/../../third_party/lib/li
 #add_definitions(-DSERVER_DEBUG)
 #add_definitions(-DSERVER_SUBLOG_DEBUG)
 
+include_directories (${PROJECT_SOURCE_DIR}/../../third_party/include)
+
+aux_source_directory (share SHARE_SRCS1)
+aux_source_directory (client CLIENT_SRCS)
+
 add_executable(
     test_client
+    ${SHARE_SRCS1}
     ${CLIENT_SRCS}
 )
 
 target_link_libraries(
     test_client
     DB2PlugGrpcProto pthread
+    libstdc++fs.a
 )
-
 
 add_subdirectory(server/logv9)
 add_subdirectory(server/logv10)
+
+
 

@@ -20,6 +20,7 @@
 
 #include "DB2PlugInDataSource.grpc.pb.h"
 #include "finally_imp.h"
+#include "tapdata_base64.h"
 
 using grpc::Channel;
 using grpc::ClientContext;
@@ -473,6 +474,7 @@ int main(int argc, char** argv)
 	signal(SIGINT, sig_int_proc);
 
 	int64_t start_time = 0;
+	std::string base64Str{};
 	std::string scn{};
 	std::string number{};
 	std::string host = "192.168.1.132";
@@ -483,6 +485,13 @@ int main(int argc, char** argv)
 	bool cache_lri = false;
 	for (int i = 1; i < argc; i++)
 	{
+		if (strcmp(argv[i], "-base64dec") == 0) {
+			base64Str = argv[++i];
+			auto decoded = tool::base64_decode(base64Str);
+			std::cout << decoded << std::endl;
+			return 0;
+		}
+
 		if (strcmp(argv[i], "-reverse") == 0) {
 			number = argv[++i];
 			std::istringstream tmp(number.c_str());

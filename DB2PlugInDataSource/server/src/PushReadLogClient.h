@@ -411,6 +411,10 @@ namespace tapdata
 				readLogPayloadCaches_.erase(it);
 			else
 			{
+				sqluint32 transactionTime = payload.transactiontime();
+				for (auto &i : it->payloads) {
+					i.set_transactiontime(transactionTime);
+				}
 				it->payloads.emplace_back(std::move(payload));
 				if (it->reorgPending) { //暂存的就返回
 					LOG_DEBUG("reorgPending, scn:{}", payload.scn());

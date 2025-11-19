@@ -1,0 +1,28 @@
+#include "tapdata_base64.h"
+#include <iostream>
+#include <string>
+#include <stdio.h>
+#include <string.h>
+
+using namespace std;
+
+int main() {
+/*  char a[3]{'a','b','c'};
+  string ret = tool::base64_encode(a, 3);
+  cout << "abc is encoded:" << ret << endl;
+*/
+  string ret = "AAQAAA==";
+  string ret1 = "";
+  cout << "decoded:" << ret1.length() << endl;
+  ret1 = tool::base64_decode(ret);
+  cout << "decoded:" << ret1.length() << endl;
+  char tmp[4]{0, 0, 0, 0};
+  bool equal = true;
+  for(int i = 0; i < ret1.length(); i++) {
+    char tmp1 = ret1.data()[i];
+    printf("%02x ", tmp1 & 0xff);
+    if (tmp[i] != tmp1) equal = false;
+  }
+  printf("\n");
+  printf("cmp:%d\n", equal);
+}
