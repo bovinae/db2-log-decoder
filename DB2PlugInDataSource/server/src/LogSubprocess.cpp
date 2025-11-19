@@ -45,7 +45,7 @@ namespace tapdata
 		const auto path = tool::get_app_path();
 		const auto pname = tool::get_process_name();
 		const auto server_address = get_app<DB2PlugInDataApp>()->get_local_config()->get_server_config().server_address_;
-        LOG_INFO("Begin to fork subprocess, args_str:{}, node_alias.first:{}, node_alias.second:{}, server_address:{}", args_str, node_alias.first, node_alias.second, server_address);
+		LOG_INFO("Begin to fork subprocess, args_str:{}, node_alias.first:{}, node_alias.second:{}, server_address:{}", args_str, node_alias.first, node_alias.second, server_address);
 		pid_ = fork();
 		if (pid_ < 0)
 		{

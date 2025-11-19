@@ -97,6 +97,7 @@ message ReadLogRequest
     WriterTarget target = 8;//数据库写回日志分析配置
     bool cacheLri = 9; // 设置为true，测试数据库链接成功后，就开始后台读日志并记录lri以及对应的commit_time
     int32 timeBack = 10; // 查询缓存LRI的倒推时间，单位秒
+    int32 readlog_bufsize = 11; // 读日志缓冲区大小，单位kB，默认512kB。
 }
 
 message TaskHandleRequest

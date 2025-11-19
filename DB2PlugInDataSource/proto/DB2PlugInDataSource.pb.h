@@ -1703,6 +1703,7 @@ class ReadLogRequest final :
     kBigEndianFieldNumber = 2,
     kCacheLriFieldNumber = 9,
     kTimeBackFieldNumber = 10,
+    kReadlogBufsizeFieldNumber = 11,
   };
   // repeated .tapdata.SourceTable tables = 6;
   int tables_size() const;
@@ -1840,6 +1841,15 @@ class ReadLogRequest final :
   void _internal_set_timeback(::PROTOBUF_NAMESPACE_ID::int32 value);
   public:
 
+  // int32 readlog_bufsize = 11;
+  void clear_readlog_bufsize();
+  ::PROTOBUF_NAMESPACE_ID::int32 readlog_bufsize() const;
+  void set_readlog_bufsize(::PROTOBUF_NAMESPACE_ID::int32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::int32 _internal_readlog_bufsize() const;
+  void _internal_set_readlog_bufsize(::PROTOBUF_NAMESPACE_ID::int32 value);
+  public:
+
   // @@protoc_insertion_point(class_scope:tapdata.ReadLogRequest)
  private:
   class _Internal;
@@ -1857,6 +1867,7 @@ class ReadLogRequest final :
   bool bigendian_;
   bool cachelri_;
   ::PROTOBUF_NAMESPACE_ID::int32 timeback_;
+  ::PROTOBUF_NAMESPACE_ID::int32 readlog_bufsize_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_DB2PlugInDataSource_2eproto;
 };
@@ -5198,6 +5209,26 @@ inline void ReadLogRequest::_internal_set_timeback(::PROTOBUF_NAMESPACE_ID::int3
 inline void ReadLogRequest::set_timeback(::PROTOBUF_NAMESPACE_ID::int32 value) {
   _internal_set_timeback(value);
   // @@protoc_insertion_point(field_set:tapdata.ReadLogRequest.timeBack)
+}
+
+// int32 readlog_bufsize = 11;
+inline void ReadLogRequest::clear_readlog_bufsize() {
+  readlog_bufsize_ = 0;
+}
+inline ::PROTOBUF_NAMESPACE_ID::int32 ReadLogRequest::_internal_readlog_bufsize() const {
+  return readlog_bufsize_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::int32 ReadLogRequest::readlog_bufsize() const {
+  // @@protoc_insertion_point(field_get:tapdata.ReadLogRequest.readlog_bufsize)
+  return _internal_readlog_bufsize();
+}
+inline void ReadLogRequest::_internal_set_readlog_bufsize(::PROTOBUF_NAMESPACE_ID::int32 value) {
+  
+  readlog_bufsize_ = value;
+}
+inline void ReadLogRequest::set_readlog_bufsize(::PROTOBUF_NAMESPACE_ID::int32 value) {
+  _internal_set_readlog_bufsize(value);
+  // @@protoc_insertion_point(field_set:tapdata.ReadLogRequest.readlog_bufsize)
 }
 
 // -------------------------------------------------------------------

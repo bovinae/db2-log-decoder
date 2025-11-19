@@ -152,14 +152,14 @@ int ReadLogWrap::sendNormalCommitMessage(sqluint32 transactionTime) const
 
 int ReadLogWrap::sendHeartbeatMessage() const
 {
-    tapdata::ReadLogPayload payload;
-    payload.set_op(tapdata::ReadLogOp::HEARTBEAT);
-    payload.set_scn(scn_);
-    payload.set_transactionid("-1");
-    payload.set_pendingminscn(pending_scn_wrap_.get_min_scn());
-    auto currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    payload.set_transactiontime(currentTime);
-    return message_callback_funcs_.push_heartbeat_message_func_(move(payload));
+	tapdata::ReadLogPayload payload;
+	payload.set_op(tapdata::ReadLogOp::HEARTBEAT);
+	payload.set_scn(scn_);
+	payload.set_transactionid("-1");
+	payload.set_pendingminscn(pending_scn_wrap_.get_min_scn());
+	auto currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+	payload.set_transactiontime(currentTime);
+	return message_callback_funcs_.push_heartbeat_message_func_(move(payload));
 }
 
 //返回小于0表示出错，直接退出
@@ -226,11 +226,15 @@ static db2LSN parse_string(const string& start_scn, bool& error)
 class DB2ContentWraper : public UtilRecov, public UtilLog
 {
 public:
-	DB2ContentWraper(const ConnectDbSet& connect_set, size_t buffer_size = 64 * 1024 * 50, db2Uint32 db2_version = db2Version970) :
+	DB2ContentWraper(const ConnectDbSet& connect_set, ReadLogWrap& rlw, size_t buffer_size = 64 * 1024 * 50, db2Uint32 db2_version = db2Version970) :
 		db2_version_{ db2_version }
 	{
 		instance_.setInstance((char*)connect_set.nodeName, (char*)connect_set.user, (char*)connect_set.pswd);
 		db_emb_.setDb((char*)connect_set.alias, (char*)connect_set.user, (char*)connect_set.pswd);
+		if (rlw.readlog_bufsize() > 0 && rlw.readlog_bufsize() < 1024 * 1024) {
+			buffer_size = rlw.readlog_bufsize() * 1024;
+		}
+		LOG_DEBUG("read log buf size is: {}", buffer_size);
 		log_buffer_.resize(buffer_size);
 	}
 
@@ -324,7 +328,7 @@ private:
 		rc_ = LogBufferDisplay(log_buffer_.data(), tool::reverse_value(read_log_info_.logRecsWritten), 1, rlw);
 		CHECKRC(rc_, "UtilLog.LogBufferDisplay");
 
-        auto last = steady_clock::now();
+		auto last = steady_clock::now();
 		while (rlw.isRunning())
 		{
 			// Read the next log sequence
@@ -344,13 +348,13 @@ private:
 			rc_ = LogBufferDisplay(log_buffer_.data(), tool::reverse_value(read_log_info_.logRecsWritten), 1, rlw);
 			CHECKRC(rc_, "LogBufferDisplay");
 			if (!read_log_info_.logRecsWritten) {
-                auto now = steady_clock::now();
-                if (duration_cast<seconds>(now - last).count() >= 3) {
-                    rlw.sendHeartbeatMessage();
-                    last = now;
-                }
+				auto now = steady_clock::now();
+				if (duration_cast<seconds>(now - last).count() >= 3) {
+					rlw.sendHeartbeatMessage();
+					last = now;
+				}
 				msleep(sleep_interval);
-            }
+			}
 		}
 
 #if 0
@@ -833,7 +837,7 @@ int64_t ReadLogWrap::db2_read_log(const ConnectDbSet& connect_set, const std::st
 	if (parse_error)
 		return -1;
 
-	DB2ContentWraper content(connect_set);
+	DB2ContentWraper content(connect_set, *this);
 	return content.read_log_loop(startLRI, sleep_interval, *this);
 }
 

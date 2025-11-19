@@ -489,12 +489,12 @@ int main(int argc, char** argv)
 		if (strcmp(argv[i], "-base64dec") == 0) {
 			base64Str = argv[++i];
 			auto decoded = tool::base64_decode(base64Str);
-            tapdata::ReadLogRequest readLogRequest;
-            if (!readLogRequest.ParseFromString(decoded)) {
-                std::cout << "check read log request, param error" << std::endl;
-                return -1;
-            }
-            std::cout << readLogRequest.DebugString() << std::endl;
+			tapdata::ReadLogRequest readLogRequest;
+			if (!readLogRequest.ParseFromString(decoded)) {
+				std::cout << "check read log request, param error" << std::endl;
+				return -1;
+			}
+			std::cout << readLogRequest.DebugString() << std::endl;
 			return 0;
 		}
 
