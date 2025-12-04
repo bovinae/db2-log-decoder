@@ -524,7 +524,9 @@ private:
 				LOG_ERROR("read_lri_sequentially failed, ret: {}", ret);
 				return ;
 			}
-			if (lri_and_time_vec.size() == 0) {
+			// Read the next log sequence
+			memcpy(&beginLri, &(read_log_info_.nextStartLSN), sizeof(beginLri));
+	    	if (lri_and_time_vec.size() == 0) {
 				LOG_DEBUG("async read lri forward, no lri and time");
 				sleep(10);
 				continue;
@@ -535,8 +537,6 @@ private:
 				lri_recorder.Insert(lsnStr, lri_and_time.time);
 			}
 			lastLri = lri_and_time_vec.back().lri;
-			// Read the next log sequence
-			memcpy(&beginLri, &(read_log_info_.nextStartLSN), sizeof(beginLri));
 			if (sqlca.sqlcode == SQLU_RLOG_READ_TO_CURRENT) {
 				LOG_DEBUG("async read lri forward, read to current");
 				sleep(60);

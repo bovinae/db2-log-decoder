@@ -1026,7 +1026,9 @@ retry:
 				}
 				continue;
 			}
-			if (lri_and_time_vec.size() == 0) {
+			// Read the next log sequence
+			memcpy(&beginLri, &(read_log_info_.nextStartLRI), sizeof(beginLri));
+	    	if (lri_and_time_vec.size() == 0) {
 				LOG_DEBUG("async read lri forward, no lri and time");
 				sleep(10);
 				continue;
@@ -1036,8 +1038,6 @@ retry:
 				lri_recorder.Insert(encode_lri(lri_and_time.lri), lri_and_time.time);
 			}
 			lastLri = lri_and_time_vec.back().lri;
-			// Read the next log sequence
-			memcpy(&beginLri, &(read_log_info_.nextStartLRI), sizeof(beginLri));
 			if (sqlca.sqlcode == SQLU_RLOG_READ_TO_CURRENT) {
 				LOG_DEBUG("async read lri forward, read to current");
 				sleep(60);
