@@ -75,6 +75,8 @@
 #include <spdlog/fmt/bin_to_hex.h>
 #include "tapdata_base64.h"
 #include "local_config.h"
+#include <sstream>
+#include <iomanip>
 
 #if ((__cplusplus >= 199711L) && !defined DB2HP && !defined DB2AIX) || \
     (DB2LINUX && (__LP64__ || (__GNUC__ >= 3)) )
@@ -570,6 +572,19 @@ int UtilLog::LogBufferDisplay(char* logBuffer,
 			LOG_DEBUG("original record: {}", recordBase64);
 			//LOG_DEBUG("original record: {}", spdlog::to_hex(recordBuffer, recordBuffer + recordSize));
 		}
+//        std::ostringstream oss;
+//        for (sqluint32 i = 0; i < recordSize; ++i) {
+//            if (i % 8 == 0) {
+//                oss << "\n0x" << std::hex << std::setw(2) << std::setfill('0')
+//                    << (static_cast<unsigned int>(
+//                        static_cast<unsigned char>(recordBuffer[i]))) << "    ";
+//            } else {
+//                oss << "0x" << std::hex << std::setw(2) << std::setfill('0')
+//                    << (static_cast<unsigned int>(
+//                        static_cast<unsigned char>(recordBuffer[i]))) << "    ";
+//            }
+//        }
+//        LOG_INFO("recordBuffer:{}", oss.str());
 		rc = LogRecordDisplay(recordBuffer, recordSize, recordType, recordFlag, pJavaWrap);
 		CHECKRC(rc, "LogRecordDisplay");
 
@@ -603,6 +618,7 @@ int UtilLog::LogRecordDisplay(char* recordBuffer,
 	char* recordHeaderBuffer = NULL;
 	sqluint8  componentIdentifier = 0;
 	sqluint32 recordHeaderSize = 0;
+    LocalRDSLogRecordHeader* record = NULL;
 
 	// determine the logManagerLogRecordHeaderSize
 	logManagerLogRecordHeaderSize = sizeof(LocalLogRecordHeader);
@@ -614,6 +630,7 @@ int UtilLog::LogRecordDisplay(char* recordBuffer,
 			logManagerLogRecordHeaderSize += sizeof(LocalLogRecordHeaderExtraCompensation);
 		}
 	}
+    LOG_INFO("logManagerLogRecordHeaderSize:{}", logManagerLogRecordHeaderSize);
 
 	LocalLogRecordHeader* header = (LocalLogRecordHeader*)recordBuffer;
 
@@ -632,6 +649,7 @@ int UtilLog::LogRecordDisplay(char* recordBuffer,
 			recordDataBuffer,
 			recordDataSize, pJavaWrap);
 		CHECKRC(rc, "SimpleLogRecordDisplay");
+        // LOG_ERROR("SimpleLog recordType:{}", recordType);
 		break;
 	case 0x004E:                // Normal
 	case 0x0043:                // Compensation
@@ -672,6 +690,13 @@ int UtilLog::LogRecordDisplay(char* recordBuffer,
 			recordDataBuffer,
 			recordDataSize, pJavaWrap);
 		CHECKRC(rc, "ComplexLogRecordDisplay");
+        record = (LocalRDSLogRecordHeader*)recordHeaderBuffer;
+        if (tool::reverse_value(record->tableIdentifier) == 23) {
+            string bodyBase64 = tool::base64_encode(recordDataBuffer, recordDataSize);
+            LOG_ERROR("tableId=23, log body:{}", bodyBase64);
+        } else if (tool::reverse_value(record->tableIdentifier) == 0) {
+            // LOG_ERROR("tableId=0, recordType:{}", recordType);
+        }
 		//string bodyBase64 = tool::base64_encode(recordDataBuffer, recordDataSize);
 		//LOG_DEBUG("complex log, body:{}", bodyBase64);
 		break;
@@ -679,6 +704,7 @@ int UtilLog::LogRecordDisplay(char* recordBuffer,
 		if (pJavaWrap.get_local_config()->get_app_log_config().log_db2_data_) {
 			LOG_DEBUG("    Unknown log record, recordType:{}", recordType);
 		}
+        // LOG_ERROR("default branch recordType:{}", recordType);
 		break;
 	}
 
@@ -721,8 +747,10 @@ int UtilLog::SimpleLogRecordDisplay(sqluint16 recordType,
 		//cout << "      authorization ID of the application: " << authId << endl;
 
 		auto re = pJavaWrap.sendNormalCommitMessage(timeTransactionCommited);
-		if (re < 0)
+		if (re < 0) {
+            LOG_ERROR("Local pending list pJavaWrap.sendNormalCommitMessage failed, re:{}", re);
 			return re;
+        }
 		return 0;
 	}
 
@@ -742,15 +770,19 @@ int UtilLog::SimpleLogRecordDisplay(sqluint16 recordType,
 		//cout << "      authorization ID of the application: " << authId << endl;
 
 		auto re = pJavaWrap.sendNormalCommitMessage(timeTransactionCommited);
-		if (re < 0)
+		if (re < 0) {
+            LOG_ERROR("Normal commit failed, re:{}", re);
 			return re;
+        }
 		return 0;
 	}
 	case 0x0041:
 	{
 		auto re = pJavaWrap.sendAbortMessage();
-		if (re < 0)
+		if (re < 0) {
+            LOG_ERROR("pJavaWrap.sendAbortMessage failed, re:{}", re);
 			return re;
+        }
 		return 0;
 	}
 
@@ -874,6 +906,7 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 
 	//cout << "      functionIdentifier: " << (int)functionIdentifier << endl;
 	bool isInternal = false;
+    //std::ostringstream oss;
 
 	switch (functionIdentifier)
 	{
@@ -951,7 +984,11 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 	}
 	case 0xA1:
 		//cout << "      function ID: Delete Record" << endl;
-		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        if (tool::reverse_value(*(sqluint16*)recordDataBuffer) == 0x01) {
+		    subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 8 * sizeof(sqluint16))));
+        } else {
+		    subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        }
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
 		//subRecordOffset = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 3 * sizeof(sqluint16) + recid.size())));
 		//cout << "        RID: " << dec << recid.getString() << endl;
@@ -967,7 +1004,11 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		break;
 	case 0x70:
 		//LOG_DEBUG("      function ID: Undo Update Record");
-		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        if (tool::reverse_value(*(sqluint16*)recordDataBuffer) == 0) {
+    		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        } else {
+    		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 8 * sizeof(sqluint16))));
+        }
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
 		//LOG_DEBUG("        RID: {}", recid.getString());
 		subRecordBuffer = recordDataBuffer + 3 * sizeof(sqluint16) + recid.size() + sizeof(sqluint16);
@@ -977,14 +1018,22 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		break;
 	case 0x6E:
 		//LOG_DEBUG("      function ID: Undo Insert Record");
-		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        if (tool::reverse_value(*(sqluint16*)recordDataBuffer) == 0) {
+    		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        } else {
+    		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 8 * sizeof(sqluint16))));
+        }
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
 		//LOG_DEBUG("        RID: {}", recid.getString());
 		operation = decltype(operation)::ROLLBACK;
 		break;
 	case 0x6F:
 		//LOG_DEBUG("      function ID: Undo Delete Record");
-		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        if (tool::reverse_value(*(sqluint16*)recordDataBuffer) == 0) {
+    		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        } else {
+    		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 8 * sizeof(sqluint16))));
+        }
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
 		//LOG_DEBUG("        RID: {}", recid.getString());
 		subRecordBuffer = recordDataBuffer + 3 * sizeof(sqluint16) + recid.size() + sizeof(sqluint16);
@@ -993,13 +1042,30 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		operation = decltype(operation)::ROLLBACK;
 		break;
 	case 0xA2:
-		//cout << "      function ID: Insert Record" << endl;
-		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        if (tool::reverse_value(*(sqluint16*)recordDataBuffer) == 0x02) {
+            subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 8 * sizeof(sqluint16))));
+        } else {
+		    //cout << "      function ID: Insert Record" << endl;
+		    subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        }
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
 		//subRecordOffset = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 3 * sizeof(sqluint16) + recid.size())));
 		//cout << "        RID: " << dec << recid.getString() << endl;
 		//cout << "        subrecord length: " << subRecordLen << endl;
 		//cout << "        subrecord offset: " << subRecordOffset << endl;
+        //LOG_INFO("recordDataBuffer: 0x{:02x}", fmt::join(recordDataBuffer, recordDataBuffer + 28, " "));
+//        for (int i = 0; i < 28; ++i) {
+//            if (i % 8 == 0) {
+//                oss << "\n0x" << std::hex << std::setw(2) << std::setfill('0')
+//                    << (static_cast<unsigned int>(
+//                        static_cast<unsigned char>(recordDataBuffer[i]))) << "    ";
+//            } else {
+//                oss << "0x" << std::hex << std::setw(2) << std::setfill('0')
+//                    << (static_cast<unsigned int>(
+//                        static_cast<unsigned char>(recordDataBuffer[i]))) << "    ";
+//            }
+//        }
+//        LOG_INFO("recordDataBuffer:{}", oss.str());
 		subRecordBuffer = recordDataBuffer + 3 * sizeof(sqluint16) + recid.size() + sizeof(sqluint16);
 		rc = LogSubRecordDisplay(subRecordBuffer, subRecordLen, pJavaWrap, isInternal);
 		CHECKRC(rc, "LogSubRecordDisplay");
@@ -1009,7 +1075,11 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 		break;
 	case 0xA3:
 		//cout << "      function ID: Update Record" << endl;
-		newSubRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        if (tool::reverse_value(*(sqluint16*)recordDataBuffer) == 0x03) {
+		    newSubRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 8 * sizeof(sqluint16))));
+        } else {
+		    newSubRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        }
 		oldSubRecordLen = recordDataSize + 6 -       //NEW
 			2 * 20 -
 			newSubRecordLen;
@@ -1065,7 +1135,11 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 			LOG_DEBUG("function ID: Insert Record to Empty Page");
 		}
 		cout << "      function ID: Insert Record to Empty Page" << endl;
-		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        if (tool::reverse_value(*(sqluint16*)recordDataBuffer) == 0) {
+    		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        } else {
+    		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 8 * sizeof(sqluint16))));
+        }
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
 		subRecordOffset = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 3 * sizeof(sqluint16) + recid.size())));
 		cout << "        RID: " << dec << recid.getString() << endl;
@@ -1081,7 +1155,11 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 			LOG_DEBUG("function ID: Delete Record to Empty Page");
 		}
 		cout << "      function ID: Delete Record to Empty Page" << endl;
-		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        if (tool::reverse_value(*(sqluint16*)recordDataBuffer) == 0) {
+    		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        } else {
+    		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 8 * sizeof(sqluint16))));
+        }
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
 		subRecordOffset = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 3 * sizeof(sqluint16) + recid.size())));
 		cout << "        RID: " << dec << recid.getString() << endl;
@@ -1097,7 +1175,11 @@ int UtilLog::ComplexLogRecordDisplay(sqluint16 recordType,
 			LOG_DEBUG("function ID: Rollback delete Record to Empty Page");
 		}
 		cout << "      function ID: Rollback delete Record to Empty Page" << endl;
-		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        if (tool::reverse_value(*(sqluint16*)recordDataBuffer) == 0) {
+    		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + sizeof(sqluint16))));
+        } else {
+    		subRecordLen = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 8 * sizeof(sqluint16))));
+        }
 		recid.set(recordDataBuffer + 3 * sizeof(sqluint16));
 		subRecordOffset = tool::reverse_value(*((sqluint16*)(recordDataBuffer + 3 * sizeof(sqluint16) + recid.size())));
 		cout << "        RID: " << dec << recid.getString() << endl;

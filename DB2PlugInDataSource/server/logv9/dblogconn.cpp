@@ -338,6 +338,9 @@ private:
 			// Extract a log record from the database logs, and
 			// read the next log sequence asynchronously.
 
+            if(tool::reverse_value(read_log_info_.logRecsWritten) < 1000) {
+                msleep(1000);
+            }
 			rc_ = db2ReadLog(db2_version_, &read_log_input_, &sqlca);
 			if (sqlca.sqlcode != SQLU_RLOG_READ_TO_CURRENT)
 			{

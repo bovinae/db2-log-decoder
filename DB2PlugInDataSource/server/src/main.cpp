@@ -45,7 +45,19 @@ int main(int argc, char* argv[])
 			LOG_ERROR("check argv, param error");
 			return -1;
 		}
-		const auto vec = tool::base64_decode(argv[2], strlen(argv[2]));
+        std::string encoded_param{};
+        std::string tmp{argv[2]};
+        auto pos = tmp.find("|");
+        if(pos != std::string::npos) {
+            pos++;
+            encoded_param = tmp.substr(pos, tmp.size() - pos);
+        }
+        std::vector<char> vec;
+        if(encoded_param.size() > 0) {
+            vec = tool::base64_decode(encoded_param.c_str(), encoded_param.size());
+        } else {
+            vec = tool::base64_decode(argv[2], strlen(argv[2]));
+        }
 		if (!readLogRequest.ParseFromString(std::string(vec.data(), vec.size())))
 		{
 			LOG_ERROR("check read log request, param error");

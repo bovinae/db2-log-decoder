@@ -95,7 +95,12 @@ namespace tapdata
 		}
 		else
 		{
-			int re = execl(path.c_str(), pname.c_str(), "C", args_str.c_str(), node_alias.first.c_str(), node_alias.second.c_str(),
+            std::string tmp{};
+            if (readlog_config_->readLogRequest_.cachelri()) {
+                tmp = "cache&" + readlog_config_->readLogRequest_.source().databasehostname() + "&";
+            }
+            tmp += readlog_config_->readLogRequest_.id() + "|" + args_str;
+			int re = execl(path.c_str(), pname.c_str(), "C", tmp.c_str(), node_alias.first.c_str(), node_alias.second.c_str(),
 				server_address.c_str(), NULL);
 			if (re == -1)
 				exit(re);

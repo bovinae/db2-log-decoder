@@ -501,6 +501,9 @@ retry:
 
 			// LOG_DEBUG("db2ReadLog begin");
 			// readlog_mutex_.multi_process_mutex_lock();
+            if (tool::reverse_value(read_log_info_.logRecsWritten) < 1000) {
+                msleep(1000);
+            }
 			LOG_DEBUG("before call db2 read log");
 			rc_ = db2ReadLog(db2_version_, &read_log_input_, &sqlca);
 			LOG_DEBUG("after call db2 read log");

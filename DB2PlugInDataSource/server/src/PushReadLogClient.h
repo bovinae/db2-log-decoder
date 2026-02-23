@@ -92,7 +92,7 @@ namespace tapdata
 					{
 						if (!get_app<DB2ReadLogApp>()->keep_run())
 							break;
-						LOG_DEBUG("push sleep ms:{}", result > 0x400 ? 0x400 : result);
+						LOG_DEBUG("result:{}, push sleep ms:{}", result, result > 0x400 ? 0x400 : result);
 						std::this_thread::sleep_for(std::chrono::milliseconds(result > 0x400 ? 0x400 : result));
 						result -= 0x400;
 					}

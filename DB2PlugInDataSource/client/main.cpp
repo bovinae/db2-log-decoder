@@ -564,7 +564,7 @@ int main(int argc, char** argv)
 	DemoClient clientv09(
 		grpc::CreateChannel("127.0.0.1:50030", grpc::InsecureChannelCredentials()));
 
-	std::vector<int> table_ids{};
+ 	std::vector<int> table_ids{};
 	// table_ids.push_back(4);
 
 	//test(clientv09, DB2Veresion::V9, start_time, std::move(tables));

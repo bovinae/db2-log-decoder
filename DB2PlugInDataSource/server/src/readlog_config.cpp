@@ -12,13 +12,14 @@ namespace tapdata
 			if (readlog_time_out_s_ < chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now().time_since_epoch()).count())
 				return -1;
 			const auto size = resps_.size();
-			if (size < 0x400)
+			if (size < 0x1000)
 			{
 				resps_.put(move(resp));
 				return 0;
 			}
 			else
 			{
+                LOG_INFO("resp_ block queue size is:{}", size);
 				return size << 2;
 			}
 		}
@@ -43,6 +44,7 @@ namespace tapdata
 				assert(false);
 			}
 		}
+        LOG_INFO("pause_:{}, st:{}", pause_, st);
 		return st;
 	}
 
