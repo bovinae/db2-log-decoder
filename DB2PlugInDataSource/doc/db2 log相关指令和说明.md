@@ -174,3 +174,73 @@ recid
 0x07    0x00    0x02    0x00
 0x7fffe9bfd080: 0x00    0x00    0x2c    0x01    0x00    0x00    0xd2    0x01
 0x7fffe9bfd088: 0x01    0x00    0x98    0x00    0x98    0x00    0x0a    0x00
+
+# ssl
+sudo docker run -itd --privileged --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --restart=always --name db2_src_srv_0419 -p 50080:50050  -p 50081:50051 db2_src_srv:0419 /bin/bash  -c "/home/DB2ReadLogServer/db2_src_start.sh /home/DB2ReadLogServer"
+
+sudo docker run -itd --privileged --restart=always --name db2_115.copy -p 50001:50001 -e LICENSE=accept -e DB2INST1_PASSWORD=Gotapd8! -e DBNAME=testdb -e container=oci -e STORAGE_DIR=/database -e HADR_SHARED_DIR=/hadr -e DBPORT=50001 -e TSPORT=55001 -e SETUPDIR=/var/db2_setup -e SETUPAREA=/tmp/setup -e NOTVISIBLE='in users profile' -e LICENSE_NAME=db2dec.lic ibmcom/db2:11.5.5.0 /bin/bash
+
+db2 list db directory
+db2 list tables
+db2 create database TESTDB
+db2 connect to TESTDB
+
+## 服务端配置
+gsk8capicmd_64 -keydb -create \
+  -db server.kdb \
+  -pw password \
+  -type cms \
+  -stash
+gsk8capicmd_64 -cert -create \
+  -db server.kdb \
+  -pw password \
+  -label db2cert \
+  -dn "CN=db2server" \
+  -default_cert yes
+gsk8capicmd_64 -cert -extract \
+  -db server.kdb \
+  -pw password \
+  -label db2cert \
+  -target server.arm \
+  -format ascii
+db2 update dbm cfg using SSL_SVCENAME 50001
+db2 update dbm cfg using SSL_SVR_KEYDB /database/config/db2inst1/server.kdb
+db2 update dbm cfg using SSL_SVR_STASH /database/config/db2inst1/server.sth
+db2 update dbm cfg using SSL_SVR_LABEL db2cert
+db2set -all | grep DB2COMM
+db2set DB2COMM=SSL,TCPIP
+db2stop
+db2start
+
+sudo docker cp ./gskit.tgz f93:/home/db2inst2/sqllib/
+sudo docker cp gskit_db2.tgz f93:/home/db2inst2/sqllib/lib64/
+export LD_LIBRARY_PATH=/home/db2inst2/sqllib/lib64/gskit_db2:$LD_LIBRARY_PATH
+
+## 客户端配置
+CERT_DIR=/home/db2inst2
+
+### 1. 创建客户端 keystore
+gsk8capicmd_64 -keydb -create \
+  -db $CERT_DIR/client.kdb \
+  -pw password \
+  -type cms \
+  -stash
+
+### 2. 把服务端证书导入
+gsk8capicmd_64 -cert -add \
+  -db $CERT_DIR/client.kdb \
+  -pw password \
+  -label db2cert \
+  -file $CERT_DIR/server.arm \
+  -format ascii
+
+### 3. 验证
+gsk8capicmd_64 -cert -list -db $CERT_DIR/client.kdb -pw password
+
+### 4. 配置 DB2 客户端实例使用这个 keystore
+db2 update dbm cfg using SSL_CLNT_KEYDB $CERT_DIR/client.kdb
+db2 update dbm cfg using SSL_CLNT_STASH $CERT_DIR/client.sth
+db2 terminate
+
+./test_client -host 192.168.1.132 -db TESTDB -passwd 'Gotapd8!' -port 50001 -st 1778316522
+

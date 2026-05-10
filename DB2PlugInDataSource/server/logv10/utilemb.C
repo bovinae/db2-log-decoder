@@ -18,6 +18,8 @@ static char sqla_program_id[292] =
 };
 
 #include "sqladef.h"
+#include "sqlcli.h"
+#include "sqlcli1.h"
 
 static struct sqla_runtime_info sqla_rtinfo = 
 {{'S','Q','L','A','R','T','I','N'}, sizeof(wchar_t), 0, {' ',' ',' ',' '}};
@@ -150,6 +152,10 @@ int DbEmb::Connect()
   strcpy(dbAlias, alias);
   strcpy(dbUser, user);
   strcpy(dbPswd, pswd);
+
+  // SSL for embedded SQL CONNECT TO is also configured via env var (same as sqleatin)
+  //setenv("IBM_DB_SSLCLIENTKEYSTOREDB", "/home/db2-log-decoder/cpp/DB2PlugInDataSource/build/client.kdb", 1);
+  //setenv("IBM_DB_SSLCLIENTKEYSTASH",   "/home/db2-log-decoder/cpp/DB2PlugInDataSource/build/client.sth", 1);
 
   if (strlen(dbUser) == 0)
   {

@@ -70,6 +70,7 @@ message ReaderSource
     string databasePassword = 4;//密码，最长为14字节
     string databaseHostname = 5;//编目使用，Hostname or IP address，最长为255字节
     string databaseServiceName = 6;//编目使用，TCP/IP service name or associated port number，最长为14字节
+    bool useSsl = 7;//使用ssl
 }
 
 message WriterTarget

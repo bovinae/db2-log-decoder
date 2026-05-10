@@ -630,7 +630,7 @@ int UtilLog::LogRecordDisplay(char* recordBuffer,
 			logManagerLogRecordHeaderSize += sizeof(LocalLogRecordHeaderExtraCompensation);
 		}
 	}
-    LOG_INFO("logManagerLogRecordHeaderSize:{}", logManagerLogRecordHeaderSize);
+    // LOG_INFO("logManagerLogRecordHeaderSize:{}", logManagerLogRecordHeaderSize);
 
 	LocalLogRecordHeader* header = (LocalLogRecordHeader*)recordBuffer;
 
@@ -693,7 +693,7 @@ int UtilLog::LogRecordDisplay(char* recordBuffer,
         record = (LocalRDSLogRecordHeader*)recordHeaderBuffer;
         if (tool::reverse_value(record->tableIdentifier) == 23) {
             string bodyBase64 = tool::base64_encode(recordDataBuffer, recordDataSize);
-            LOG_ERROR("tableId=23, log body:{}", bodyBase64);
+            // LOG_ERROR("tableId=23, log body:{}", bodyBase64);
         } else if (tool::reverse_value(record->tableIdentifier) == 0) {
             // LOG_ERROR("tableId=0, recordType:{}", recordType);
         }

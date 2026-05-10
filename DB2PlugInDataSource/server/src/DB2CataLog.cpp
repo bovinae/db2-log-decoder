@@ -205,13 +205,17 @@ namespace tapdata
 #define DB2_DB_ALIAS_INVALID -1000
 #define DB2_DB_DIRECTORY_IS_FULL -1030
 
-        std::pair<std::string, std::string> create_connect(const string& hostname, const string& service_name, const std::string& db_name)
+        std::pair<std::string, std::string> create_connect(const string& hostname, const string& service_name, const std::string& db_name, bool use_ssl)
         {
             std::pair<std::string, std::string> node_alias;
 
             struct sqle_node_struct newNode;
             newNode.struct_id = SQL_NODE_STR_ID;
-            newNode.protocol = SQL_PROTOCOL_TCPIP;
+            if (use_ssl) {
+                newNode.protocol = SQL_PROTOCOL_SSL;
+            } else {
+                newNode.protocol = SQL_PROTOCOL_TCPIP;
+            }
 
             struct sqle_node_tcpip TCPIPprotocol;
             strncpy(TCPIPprotocol.hostname, hostname.c_str(), SQL_HOSTNAME_SZ + 1);
@@ -250,7 +254,8 @@ namespace tapdata
                     (char*)node_alias.first.c_str(),
                     nullptr,
                     "",
-                    SQL_AUTHENTICATION_NOT_SPEC, // SQL_AUTHENTICATION_SERVER
+                    SQL_AUTHENTICATION_NOT_SPEC,
+                    //SQL_AUTHENTICATION_SERVER,
                     NULL,
                     &sqlca);
             } while (sqlca.sqlcode == DB2_DB_ALIAS_ALREADY_EXISTS || sqlca.sqlcode == DB2_DB_ALIAS_INVALID);

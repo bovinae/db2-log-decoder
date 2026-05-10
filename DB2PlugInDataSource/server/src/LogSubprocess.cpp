@@ -37,8 +37,11 @@ namespace tapdata
 		}
 		const string args_str = tool::base64_encode(ser_str.data(), ser_str.size());
 
+        LOG_INFO("use_ssl:{}", readlog_config_->readLogRequest_.source().usessl());
 		const auto node_alias = DB2CataLog::create_connect(readlog_config_->readLogRequest_.source().databasehostname(),
-			readlog_config_->readLogRequest_.source().databaseservicename(), readlog_config_->readLogRequest_.source().databasename());
+			readlog_config_->readLogRequest_.source().databaseservicename(),
+            readlog_config_->readLogRequest_.source().databasename(),
+            readlog_config_->readLogRequest_.source().usessl());
 		if (node_alias.first.empty() || node_alias.second.empty())
 			return false;
 

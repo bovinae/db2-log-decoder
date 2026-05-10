@@ -1147,6 +1147,7 @@ class ReaderSource final :
     kDatabaseHostnameFieldNumber = 5,
     kDatabaseServiceNameFieldNumber = 6,
     kDatabaseVersionFieldNumber = 1,
+    kUseSslFieldNumber = 7,
   };
   // string databaseName = 2;
   void clear_databasename();
@@ -1227,6 +1228,15 @@ class ReaderSource final :
   void _internal_set_databaseversion(::tapdata::DB2Veresion value);
   public:
 
+  // bool useSsl = 7;
+  void clear_usessl();
+  bool usessl() const;
+  void set_usessl(bool value);
+  private:
+  bool _internal_usessl() const;
+  void _internal_set_usessl(bool value);
+  public:
+
   // @@protoc_insertion_point(class_scope:tapdata.ReaderSource)
  private:
   class _Internal;
@@ -1240,6 +1250,7 @@ class ReaderSource final :
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr databasehostname_;
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr databaseservicename_;
   int databaseversion_;
+  bool usessl_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_DB2PlugInDataSource_2eproto;
 };
@@ -4563,6 +4574,26 @@ inline void ReaderSource::set_allocated_databaseservicename(std::string* databas
   databaseservicename_.SetAllocated(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), databaseservicename,
       GetArenaForAllocation());
   // @@protoc_insertion_point(field_set_allocated:tapdata.ReaderSource.databaseServiceName)
+}
+
+// bool useSsl = 7;
+inline void ReaderSource::clear_usessl() {
+  usessl_ = false;
+}
+inline bool ReaderSource::_internal_usessl() const {
+  return usessl_;
+}
+inline bool ReaderSource::usessl() const {
+  // @@protoc_insertion_point(field_get:tapdata.ReaderSource.useSsl)
+  return _internal_usessl();
+}
+inline void ReaderSource::_internal_set_usessl(bool value) {
+  
+  usessl_ = value;
+}
+inline void ReaderSource::set_usessl(bool value) {
+  _internal_set_usessl(value);
+  // @@protoc_insertion_point(field_set:tapdata.ReaderSource.useSsl)
 }
 
 // -------------------------------------------------------------------

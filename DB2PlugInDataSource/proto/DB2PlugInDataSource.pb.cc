@@ -84,7 +84,8 @@ constexpr ReaderSource::ReaderSource(
   , databasehostname_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
   , databaseservicename_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
   , databaseversion_(0)
-{}
+
+  , usessl_(false){}
 struct ReaderSourceDefaultTypeInternal {
   constexpr ReaderSourceDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -350,6 +351,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_DB2PlugInDataSource_2eproto::o
   PROTOBUF_FIELD_OFFSET(::tapdata::ReaderSource, databasepassword_),
   PROTOBUF_FIELD_OFFSET(::tapdata::ReaderSource, databasehostname_),
   PROTOBUF_FIELD_OFFSET(::tapdata::ReaderSource, databaseservicename_),
+  PROTOBUF_FIELD_OFFSET(::tapdata::ReaderSource, usessl_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::tapdata::WriterTarget, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -486,19 +488,19 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 15, -1, -1, sizeof(::tapdata::PingResponse)},
   { 24, -1, -1, sizeof(::tapdata::ServerInfoResponse)},
   { 36, -1, -1, sizeof(::tapdata::ReaderSource)},
-  { 48, -1, -1, sizeof(::tapdata::WriterTarget)},
-  { 57, -1, -1, sizeof(::tapdata::SourceTable)},
-  { 65, -1, -1, sizeof(::tapdata::ReadLogRequest)},
-  { 82, -1, -1, sizeof(::tapdata::TaskHandleRequest)},
-  { 90, -1, -1, sizeof(::tapdata::ControlResponse)},
-  { 99, -1, -1, sizeof(::tapdata::ReadLogTaskState)},
-  { 107, -1, -1, sizeof(::tapdata::ListReadLogTaskStatesRequest)},
-  { 114, -1, -1, sizeof(::tapdata::ListReadLogTaskStatesResponse)},
-  { 123, -1, -1, sizeof(::tapdata::GetReadLogTaskStateResponse)},
-  { 132, -1, -1, sizeof(::tapdata::ReadLogPayload)},
-  { 151, -1, -1, sizeof(::tapdata::ReadLogResponse)},
-  { 161, -1, -1, sizeof(::tapdata::PushReadLogResponse)},
-  { 169, -1, -1, sizeof(::tapdata::PushReadLogRequest)},
+  { 49, -1, -1, sizeof(::tapdata::WriterTarget)},
+  { 58, -1, -1, sizeof(::tapdata::SourceTable)},
+  { 66, -1, -1, sizeof(::tapdata::ReadLogRequest)},
+  { 83, -1, -1, sizeof(::tapdata::TaskHandleRequest)},
+  { 91, -1, -1, sizeof(::tapdata::ControlResponse)},
+  { 100, -1, -1, sizeof(::tapdata::ReadLogTaskState)},
+  { 108, -1, -1, sizeof(::tapdata::ListReadLogTaskStatesRequest)},
+  { 115, -1, -1, sizeof(::tapdata::ListReadLogTaskStatesResponse)},
+  { 124, -1, -1, sizeof(::tapdata::GetReadLogTaskStateResponse)},
+  { 133, -1, -1, sizeof(::tapdata::ReadLogPayload)},
+  { 152, -1, -1, sizeof(::tapdata::ReadLogResponse)},
+  { 162, -1, -1, sizeof(::tapdata::PushReadLogResponse)},
+  { 170, -1, -1, sizeof(::tapdata::PushReadLogRequest)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -535,95 +537,95 @@ const char descriptor_table_protodef_DB2PlugInDataSource_2eproto[] PROTOBUF_SECT
   "\t\022,\n\016supportVersion\030\004 \001(\0162\024.tapdata.DB2V"
   "eresion\022\036\n\026supportProtocolVersion\030\005 \003(\005\022"
   ".\n\021supportWriterType\030\006 \003(\0162\023.tapdata.Wri"
-  "terType\"\276\001\n\014ReaderSource\022-\n\017databaseVers"
+  "terType\"\316\001\n\014ReaderSource\022-\n\017databaseVers"
   "ion\030\001 \001(\0162\024.tapdata.DB2Veresion\022\024\n\014datab"
   "aseName\030\002 \001(\t\022\030\n\020databaseUsername\030\003 \001(\t\022"
   "\030\n\020databasePassword\030\004 \001(\t\022\030\n\020databaseHos"
   "tname\030\005 \001(\t\022\033\n\023databaseServiceName\030\006 \001(\t"
-  "\"g\n\014WriterTarget\022!\n\004type\030\001 \001(\0162\023.tapdata"
-  ".WriterType\022\030\n\020kafkaWriterTopic\030\002 \001(\t\022\032\n"
-  "\022kafkaWriterBrokers\030\003 \001(\t\"4\n\013SourceTable"
-  "\022\017\n\007tableId\030\001 \001(\005\022\024\n\014tableSpaceId\030\002 \001(\005\""
-  "\244\002\n\016ReadLogRequest\022&\n\006header\030\001 \001(\0132\026.tap"
-  "data.MessageHeader\022\021\n\tbigEndian\030\002 \001(\010\022\n\n"
-  "\002id\030\003 \001(\t\022\013\n\003scn\030\004 \001(\t\022\r\n\005stime\030\005 \001(\003\022$\n"
-  "\006tables\030\006 \003(\0132\024.tapdata.SourceTable\022%\n\006s"
-  "ource\030\007 \001(\0132\025.tapdata.ReaderSource\022%\n\006ta"
-  "rget\030\010 \001(\0132\025.tapdata.WriterTarget\022\020\n\010cac"
-  "heLri\030\t \001(\010\022\020\n\010timeBack\030\n \001(\005\022\027\n\017readlog"
-  "_bufsize\030\013 \001(\005\"G\n\021TaskHandleRequest\022&\n\006h"
-  "eader\030\001 \001(\0132\026.tapdata.MessageHeader\022\n\n\002i"
-  "d\030\002 \001(\t\"k\n\017ControlResponse\022&\n\006header\030\001 \001"
-  "(\0132\026.tapdata.MessageHeader\022#\n\004code\030\002 \001(\016"
-  "2\025.tapdata.ResponseCode\022\013\n\003msg\030\003 \001(\t\"A\n\020"
-  "ReadLogTaskState\022\n\n\002id\030\001 \001(\t\022!\n\005state\030\002 "
-  "\001(\0162\022.tapdata.TaskState\"F\n\034ListReadLogTa"
-  "skStatesRequest\022&\n\006header\030\001 \001(\0132\026.tapdat"
-  "a.MessageHeader\"\232\001\n\035ListReadLogTaskState"
-  "sResponse\022&\n\006header\030\001 \001(\0132\026.tapdata.Mess"
-  "ageHeader\022#\n\004code\030\002 \001(\0162\025.tapdata.Respon"
-  "seCode\022,\n\ttaskState\030\003 \003(\0132\031.tapdata.Read"
-  "LogTaskState\"\230\001\n\033GetReadLogTaskStateResp"
-  "onse\022&\n\006header\030\001 \001(\0132\026.tapdata.MessageHe"
-  "ader\022#\n\004code\030\002 \001(\0162\025.tapdata.ResponseCod"
-  "e\022,\n\ttaskState\030\003 \003(\0132\031.tapdata.ReadLogTa"
-  "skState\"\234\002\n\016ReadLogPayload\022\036\n\002op\030\001 \001(\0162\022"
-  ".tapdata.ReadLogOp\022\013\n\003scn\030\002 \001(\t\022\020\n\010logBy"
-  "tes\030\003 \001(\014\022\027\n\017transactionTime\030\004 \001(\003\022\025\n\rtr"
-  "ansactionId\030\005 \001(\t\022\017\n\007tableId\030\006 \001(\005\022\024\n\014ta"
-  "bleSpaceId\030\007 \001(\005\022\013\n\003rid\030\010 \001(\t\022\025\n\rdefault"
-  "Schema\030\t \001(\t\022\016\n\006schema\030\n \001(\t\022\021\n\ttableNam"
-  "e\030\013 \001(\t\022\026\n\016beforeLogBytes\030\014 \001(\014\022\025\n\rpendi"
-  "ngMinScn\030\r \001(\t\"\240\001\n\017ReadLogResponse\022&\n\006he"
-  "ader\030\001 \001(\0132\026.tapdata.MessageHeader\022#\n\004co"
-  "de\030\002 \001(\0162\025.tapdata.ResponseCode\022\026\n\016paylo"
-  "adVersion\030\003 \001(\t\022(\n\007payload\030\004 \003(\0132\027.tapda"
-  "ta.ReadLogPayload\"R\n\023PushReadLogResponse"
-  "\022\'\n\004code\030\001 \001(\0162\031.tapdata.PushResponseCod"
-  "e\022\022\n\nwaitTimeMS\030\002 \001(\005\"O\n\022PushReadLogRequ"
-  "est\022\n\n\002id\030\001 \001(\t\022-\n\013logResponse\030\002 \001(\0132\030.t"
-  "apdata.ReadLogResponse*!\n\nWriterType\022\010\n\004"
-  "GRPC\020\000\022\t\n\005KAFKA\020\001*(\n\013DB2Veresion\022\010\n\004AUTO"
-  "\020\000\022\006\n\002V9\020\001\022\007\n\003V10\020\002*\262\001\n\014ResponseCode\022\006\n\002"
-  "OK\020\000\022\021\n\rINVALID_PARAM\020\001\022\022\n\016ALREADY_CREAT"
-  "E\020\002\022\r\n\tNOT_EXIST\020\003\022\n\n\006PAUSED\020\004\022\013\n\007RUNNIN"
-  "G\020\005\022\025\n\021STOP_BY_EXCEPTION\020\006\022\017\n\013NOT_SUPPOR"
-  "T\020\007\022\021\n\rSHUTTING_DOWN\020\010\022\020\n\014PASSIVE_STOP\020\t"
-  "*J\n\tTaskState\022\020\n\014TASK_RUNNING\020\000\022\017\n\013TASK_"
-  "PAUSED\020\001\022\032\n\026TASK_STOP_BY_EXCEPTION\020\002*n\n\t"
-  "ReadLogOp\022\013\n\007UNKNOWN\020\000\022\014\n\010ROLLBACK\020\001\022\n\n\006"
-  "COMMIT\020\002\022\n\n\006INSERT\020\003\022\n\n\006UPDATE\020\004\022\n\n\006DELE"
-  "TE\020\005\022\007\n\003DDL\020\006\022\r\n\tHEARTBEAT\020\007*\?\n\020PushResp"
-  "onseCode\022\013\n\007PUSH_OK\020\000\022\r\n\tPUSH_STOP\020\001\022\017\n\013"
-  "PUSH_PAUSED\020\0022\230\006\n\020DB2ReadLogServer\0225\n\004Pi"
-  "ng\022\024.tapdata.PingRequest\032\025.tapdata.PingR"
-  "esponse\"\000\022C\n\nServerInfo\022\026.google.protobu"
-  "f.Empty\032\033.tapdata.ServerInfoResponse\"\000\022H"
-  "\n\021CreateReadLogTask\022\027.tapdata.ReadLogReq"
-  "uest\032\030.tapdata.ControlResponse\"\000\022K\n\021Dele"
-  "teReadLogTask\022\032.tapdata.TaskHandleReques"
-  "t\032\030.tapdata.ControlResponse\"\000\022J\n\020PauseRe"
-  "adLogTask\022\032.tapdata.TaskHandleRequest\032\030."
-  "tapdata.ControlResponse\"\000\022K\n\021ResumeReadL"
-  "ogTask\022\032.tapdata.TaskHandleRequest\032\030.tap"
-  "data.ControlResponse\"\000\022h\n\025ListReadLogTas"
-  "kStates\022%.tapdata.ListReadLogTaskStatesR"
-  "equest\032&.tapdata.ListReadLogTaskStatesRe"
-  "sponse\"\000\022Y\n\023GetReadLogTaskState\022\032.tapdat"
-  "a.TaskHandleRequest\032$.tapdata.GetReadLog"
-  "TaskStateResponse\"\000\022G\n\013PullReadLog\022\032.tap"
-  "data.TaskHandleRequest\032\030.tapdata.ReadLog"
-  "Response\"\0000\001\022J\n\013PushReadLog\022\033.tapdata.Pu"
-  "shReadLogRequest\032\034.tapdata.PushReadLogRe"
-  "sponse\"\000B-\n\023io.tapdata.data.db2B\017ProtoDB"
-  "2ReadLogP\001\242\002\002PDb\006proto3"
+  "\022\016\n\006useSsl\030\007 \001(\010\"g\n\014WriterTarget\022!\n\004type"
+  "\030\001 \001(\0162\023.tapdata.WriterType\022\030\n\020kafkaWrit"
+  "erTopic\030\002 \001(\t\022\032\n\022kafkaWriterBrokers\030\003 \001("
+  "\t\"4\n\013SourceTable\022\017\n\007tableId\030\001 \001(\005\022\024\n\014tab"
+  "leSpaceId\030\002 \001(\005\"\244\002\n\016ReadLogRequest\022&\n\006he"
+  "ader\030\001 \001(\0132\026.tapdata.MessageHeader\022\021\n\tbi"
+  "gEndian\030\002 \001(\010\022\n\n\002id\030\003 \001(\t\022\013\n\003scn\030\004 \001(\t\022\r"
+  "\n\005stime\030\005 \001(\003\022$\n\006tables\030\006 \003(\0132\024.tapdata."
+  "SourceTable\022%\n\006source\030\007 \001(\0132\025.tapdata.Re"
+  "aderSource\022%\n\006target\030\010 \001(\0132\025.tapdata.Wri"
+  "terTarget\022\020\n\010cacheLri\030\t \001(\010\022\020\n\010timeBack\030"
+  "\n \001(\005\022\027\n\017readlog_bufsize\030\013 \001(\005\"G\n\021TaskHa"
+  "ndleRequest\022&\n\006header\030\001 \001(\0132\026.tapdata.Me"
+  "ssageHeader\022\n\n\002id\030\002 \001(\t\"k\n\017ControlRespon"
+  "se\022&\n\006header\030\001 \001(\0132\026.tapdata.MessageHead"
+  "er\022#\n\004code\030\002 \001(\0162\025.tapdata.ResponseCode\022"
+  "\013\n\003msg\030\003 \001(\t\"A\n\020ReadLogTaskState\022\n\n\002id\030\001"
+  " \001(\t\022!\n\005state\030\002 \001(\0162\022.tapdata.TaskState\""
+  "F\n\034ListReadLogTaskStatesRequest\022&\n\006heade"
+  "r\030\001 \001(\0132\026.tapdata.MessageHeader\"\232\001\n\035List"
+  "ReadLogTaskStatesResponse\022&\n\006header\030\001 \001("
+  "\0132\026.tapdata.MessageHeader\022#\n\004code\030\002 \001(\0162"
+  "\025.tapdata.ResponseCode\022,\n\ttaskState\030\003 \003("
+  "\0132\031.tapdata.ReadLogTaskState\"\230\001\n\033GetRead"
+  "LogTaskStateResponse\022&\n\006header\030\001 \001(\0132\026.t"
+  "apdata.MessageHeader\022#\n\004code\030\002 \001(\0162\025.tap"
+  "data.ResponseCode\022,\n\ttaskState\030\003 \003(\0132\031.t"
+  "apdata.ReadLogTaskState\"\234\002\n\016ReadLogPaylo"
+  "ad\022\036\n\002op\030\001 \001(\0162\022.tapdata.ReadLogOp\022\013\n\003sc"
+  "n\030\002 \001(\t\022\020\n\010logBytes\030\003 \001(\014\022\027\n\017transaction"
+  "Time\030\004 \001(\003\022\025\n\rtransactionId\030\005 \001(\t\022\017\n\007tab"
+  "leId\030\006 \001(\005\022\024\n\014tableSpaceId\030\007 \001(\005\022\013\n\003rid\030"
+  "\010 \001(\t\022\025\n\rdefaultSchema\030\t \001(\t\022\016\n\006schema\030\n"
+  " \001(\t\022\021\n\ttableName\030\013 \001(\t\022\026\n\016beforeLogByte"
+  "s\030\014 \001(\014\022\025\n\rpendingMinScn\030\r \001(\t\"\240\001\n\017ReadL"
+  "ogResponse\022&\n\006header\030\001 \001(\0132\026.tapdata.Mes"
+  "sageHeader\022#\n\004code\030\002 \001(\0162\025.tapdata.Respo"
+  "nseCode\022\026\n\016payloadVersion\030\003 \001(\t\022(\n\007paylo"
+  "ad\030\004 \003(\0132\027.tapdata.ReadLogPayload\"R\n\023Pus"
+  "hReadLogResponse\022\'\n\004code\030\001 \001(\0162\031.tapdata"
+  ".PushResponseCode\022\022\n\nwaitTimeMS\030\002 \001(\005\"O\n"
+  "\022PushReadLogRequest\022\n\n\002id\030\001 \001(\t\022-\n\013logRe"
+  "sponse\030\002 \001(\0132\030.tapdata.ReadLogResponse*!"
+  "\n\nWriterType\022\010\n\004GRPC\020\000\022\t\n\005KAFKA\020\001*(\n\013DB2"
+  "Veresion\022\010\n\004AUTO\020\000\022\006\n\002V9\020\001\022\007\n\003V10\020\002*\262\001\n\014"
+  "ResponseCode\022\006\n\002OK\020\000\022\021\n\rINVALID_PARAM\020\001\022"
+  "\022\n\016ALREADY_CREATE\020\002\022\r\n\tNOT_EXIST\020\003\022\n\n\006PA"
+  "USED\020\004\022\013\n\007RUNNING\020\005\022\025\n\021STOP_BY_EXCEPTION"
+  "\020\006\022\017\n\013NOT_SUPPORT\020\007\022\021\n\rSHUTTING_DOWN\020\010\022\020"
+  "\n\014PASSIVE_STOP\020\t*J\n\tTaskState\022\020\n\014TASK_RU"
+  "NNING\020\000\022\017\n\013TASK_PAUSED\020\001\022\032\n\026TASK_STOP_BY"
+  "_EXCEPTION\020\002*n\n\tReadLogOp\022\013\n\007UNKNOWN\020\000\022\014"
+  "\n\010ROLLBACK\020\001\022\n\n\006COMMIT\020\002\022\n\n\006INSERT\020\003\022\n\n\006"
+  "UPDATE\020\004\022\n\n\006DELETE\020\005\022\007\n\003DDL\020\006\022\r\n\tHEARTBE"
+  "AT\020\007*\?\n\020PushResponseCode\022\013\n\007PUSH_OK\020\000\022\r\n"
+  "\tPUSH_STOP\020\001\022\017\n\013PUSH_PAUSED\020\0022\230\006\n\020DB2Rea"
+  "dLogServer\0225\n\004Ping\022\024.tapdata.PingRequest"
+  "\032\025.tapdata.PingResponse\"\000\022C\n\nServerInfo\022"
+  "\026.google.protobuf.Empty\032\033.tapdata.Server"
+  "InfoResponse\"\000\022H\n\021CreateReadLogTask\022\027.ta"
+  "pdata.ReadLogRequest\032\030.tapdata.ControlRe"
+  "sponse\"\000\022K\n\021DeleteReadLogTask\022\032.tapdata."
+  "TaskHandleRequest\032\030.tapdata.ControlRespo"
+  "nse\"\000\022J\n\020PauseReadLogTask\022\032.tapdata.Task"
+  "HandleRequest\032\030.tapdata.ControlResponse\""
+  "\000\022K\n\021ResumeReadLogTask\022\032.tapdata.TaskHan"
+  "dleRequest\032\030.tapdata.ControlResponse\"\000\022h"
+  "\n\025ListReadLogTaskStates\022%.tapdata.ListRe"
+  "adLogTaskStatesRequest\032&.tapdata.ListRea"
+  "dLogTaskStatesResponse\"\000\022Y\n\023GetReadLogTa"
+  "skState\022\032.tapdata.TaskHandleRequest\032$.ta"
+  "pdata.GetReadLogTaskStateResponse\"\000\022G\n\013P"
+  "ullReadLog\022\032.tapdata.TaskHandleRequest\032\030"
+  ".tapdata.ReadLogResponse\"\0000\001\022J\n\013PushRead"
+  "Log\022\033.tapdata.PushReadLogRequest\032\034.tapda"
+  "ta.PushReadLogResponse\"\000B-\n\023io.tapdata.d"
+  "ata.db2B\017ProtoDB2ReadLogP\001\242\002\002PDb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_DB2PlugInDataSource_2eproto_deps[1] = {
   &::descriptor_table_google_2fprotobuf_2fempty_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_DB2PlugInDataSource_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_DB2PlugInDataSource_2eproto = {
-  false, false, 3743, descriptor_table_protodef_DB2PlugInDataSource_2eproto, "DB2PlugInDataSource.proto", 
+  false, false, 3759, descriptor_table_protodef_DB2PlugInDataSource_2eproto, "DB2PlugInDataSource.proto", 
   &descriptor_table_DB2PlugInDataSource_2eproto_once, descriptor_table_DB2PlugInDataSource_2eproto_deps, 1, 18,
   schemas, file_default_instances, TableStruct_DB2PlugInDataSource_2eproto::offsets,
   file_level_metadata_DB2PlugInDataSource_2eproto, file_level_enum_descriptors_DB2PlugInDataSource_2eproto, file_level_service_descriptors_DB2PlugInDataSource_2eproto,
@@ -1842,7 +1844,9 @@ ReaderSource::ReaderSource(const ReaderSource& from)
     databaseservicename_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_databaseservicename(), 
       GetArenaForAllocation());
   }
-  databaseversion_ = from.databaseversion_;
+  ::memcpy(&databaseversion_, &from.databaseversion_,
+    static_cast<size_t>(reinterpret_cast<char*>(&usessl_) -
+    reinterpret_cast<char*>(&databaseversion_)) + sizeof(usessl_));
   // @@protoc_insertion_point(copy_constructor:tapdata.ReaderSource)
 }
 
@@ -1852,7 +1856,10 @@ databaseusername_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyS
 databasepassword_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 databasehostname_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 databaseservicename_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-databaseversion_ = 0;
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&databaseversion_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&usessl_) -
+    reinterpret_cast<char*>(&databaseversion_)) + sizeof(usessl_));
 }
 
 ReaderSource::~ReaderSource() {
@@ -1892,7 +1899,9 @@ void ReaderSource::Clear() {
   databasepassword_.ClearToEmpty();
   databasehostname_.ClearToEmpty();
   databaseservicename_.ClearToEmpty();
-  databaseversion_ = 0;
+  ::memset(&databaseversion_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&usessl_) -
+      reinterpret_cast<char*>(&databaseversion_)) + sizeof(usessl_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -1957,6 +1966,14 @@ const char* ReaderSource::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_I
           auto str = _internal_mutable_databaseservicename();
           ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
           CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, "tapdata.ReaderSource.databaseServiceName"));
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // bool useSsl = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 56)) {
+          usessl_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
@@ -2047,6 +2064,12 @@ failure:
         6, this->_internal_databaseservicename(), target);
   }
 
+  // bool useSsl = 7;
+  if (this->_internal_usessl() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteBoolToArray(7, this->_internal_usessl(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -2104,6 +2127,11 @@ size_t ReaderSource::ByteSizeLong() const {
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_databaseversion());
   }
 
+  // bool useSsl = 7;
+  if (this->_internal_usessl() != 0) {
+    total_size += 1 + 1;
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
 }
 
@@ -2143,6 +2171,9 @@ void ReaderSource::MergeFrom(const ReaderSource& from) {
   }
   if (from._internal_databaseversion() != 0) {
     _internal_set_databaseversion(from._internal_databaseversion());
+  }
+  if (from._internal_usessl() != 0) {
+    _internal_set_usessl(from._internal_usessl());
   }
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
@@ -2188,7 +2219,12 @@ void ReaderSource::InternalSwap(ReaderSource* other) {
       &databaseservicename_, lhs_arena,
       &other->databaseservicename_, rhs_arena
   );
-  swap(databaseversion_, other->databaseversion_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(ReaderSource, usessl_)
+      + sizeof(ReaderSource::usessl_)
+      - PROTOBUF_FIELD_OFFSET(ReaderSource, databaseversion_)>(
+          reinterpret_cast<char*>(&databaseversion_),
+          reinterpret_cast<char*>(&other->databaseversion_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata ReaderSource::GetMetadata() const {

@@ -65,6 +65,7 @@
 
 #include <string.h>
 #include <sqlenv.h>
+#include <stdlib.h>
 #include <sqlda.h>
 #include <sqlca.h>
 #include "utilapi.h"
@@ -133,6 +134,10 @@ int Instance::Attach()
 		str << "\n\n##############  ATTACH TO THE INSTANCE: " << nodeName
 			<< " #######" << endl << endl;
 		LOG_INFO("{}", str.str());
+
+        // sqleseti only affects CONNECT TO; for sqleatin SSL is configured via env vars
+        //setenv("IBM_DB_SSLCLIENTKEYSTOREDB", "/home/db2-log-decoder/cpp/DB2PlugInDataSource/build/client.kdb", 1);
+        //setenv("IBM_DB_SSLCLIENTKEYSTASH",   "/home/db2-log-decoder/cpp/DB2PlugInDataSource/build/client.sth", 1);
 
 		// attach to an instance
 		sqleatin(nodeName, user, pswd, &sqlca);

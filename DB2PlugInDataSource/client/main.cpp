@@ -91,7 +91,7 @@ public:
 		}
 	}
 
-	void CreateReadlogTaskV10(const std::string& id, std::vector<int>&& table_ids, int64_t start_time, const std::string& scn, const std::string& host, const std::string& port, const std::string& db, const std::string& passwd, bool bigendian, bool cache_lri) {
+	void CreateReadlogTaskV10(const std::string& id, std::vector<int>&& table_ids, int64_t start_time, const std::string& scn, const std::string& host, const std::string& port, const std::string& db, const std::string& passwd, bool bigendian, bool cache_lri, bool use_ssl) {
 		ControlResponse resp;
 
 		// Context for the client. It could be used to convey extra information to
@@ -121,6 +121,7 @@ public:
 		req.mutable_source()->set_databaseversion(DB2Veresion::V10);
 		req.mutable_source()->set_databasehostname(host); // 192.168.1.132 172.17.0.3
 		req.mutable_source()->set_databaseservicename(port); // "50008"
+        req.mutable_source()->set_usessl(use_ssl);
 
 		SourceTable table;
 		for (auto& id : table_ids)
@@ -367,7 +368,7 @@ private:
 };
 
 
-void test(DemoClient& client, DB2Veresion ver, int64_t start_time, std::vector<int>&& table_ids, const std::string& scn, const std::string& host, const std::string& port, const std::string& db, const std::string& passwd, bool bigendian, bool cache_lri)
+void test(DemoClient& client, DB2Veresion ver, int64_t start_time, std::vector<int>&& table_ids, const std::string& scn, const std::string& host, const std::string& port, const std::string& db, const std::string& passwd, bool bigendian, bool cache_lri, bool use_ssl)
 {
 	auto tid = std::this_thread::get_id();
 	std::stringstream sst;
@@ -410,9 +411,9 @@ void test(DemoClient& client, DB2Veresion ver, int64_t start_time, std::vector<i
 
 	if (ver == decltype(ver)::V10)
 	{
-		auto create_test_re = std::async([&sst, start_time, &table_ids, &client, scn, host, port, db, passwd, bigendian, cache_lri]()
+		auto create_test_re = std::async([&sst, start_time, &table_ids, &client, scn, host, port, db, passwd, bigendian, cache_lri, use_ssl]()
 			{
-				client.CreateReadlogTaskV10(sst.str(), std::move(table_ids), start_time, scn, host, port, db, passwd, bigendian, cache_lri);
+				client.CreateReadlogTaskV10(sst.str(), std::move(table_ids), start_time, scn, host, port, db, passwd, bigendian, cache_lri, use_ssl);
 			});
 
 		create_test_re.wait();
@@ -484,7 +485,8 @@ int main(int argc, char** argv)
 	std::string passwd = "Gotapd8!"; // Eo36_MCf
 	bool bigendian = false;
 	bool cache_lri = false;
-	for (int i = 1; i < argc; i++)
+	bool use_ssl = false;
+    for (int i = 1; i < argc; i++)
 	{
 		if (strcmp(argv[i], "-base64dec") == 0) {
 			base64Str = argv[++i];
@@ -552,6 +554,13 @@ int main(int argc, char** argv)
 				cache_lri = true;
 			}
 		}
+        else if (strcmp(argv[i], "-ssl") == 0)
+        {
+            char* tmp = argv[++i];
+            if (strcmp(tmp, "1") == 0 || strcmp(tmp, "true") == 0) {
+                use_ssl = true;
+            }
+        }
 	}
 
 #if 0
@@ -571,7 +580,7 @@ int main(int argc, char** argv)
 
 
 
-	test(clientv10, DB2Veresion::V10, start_time, std::move(table_ids), scn, host, port, db, passwd, bigendian, cache_lri);
+	test(clientv10, DB2Veresion::V10, start_time, std::move(table_ids), scn, host, port, db, passwd, bigendian, cache_lri, use_ssl);
 
 	return 0;
 }
